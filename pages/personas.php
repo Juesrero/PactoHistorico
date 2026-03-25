@@ -399,7 +399,7 @@ if ($formMode === 'edit' || $formErrors !== []) {
                             <div class="alert alert-danger"><?= e($formErrors['general']); ?></div>
                         <?php endif; ?>
 
-            <form method="post" class="needs-validation" novalidate>
+            <form method="post" class="needs-validation persona-form-compact" novalidate>
                 <?= csrf_field(); ?>
                 <input type="hidden" name="form_action" value="<?= $formMode === 'edit' ? 'update_persona' : 'create_persona'; ?>">
                 <input type="hidden" name="return_q" value="<?= e($search); ?>">
@@ -410,95 +410,120 @@ if ($formMode === 'edit' || $formErrors !== []) {
                     <input type="hidden" name="id" value="<?= e((string) $formData['id']); ?>">
                 <?php endif; ?>
 
-                <div class="row g-3">
+                <div class="row g-2">
                     <div class="col-md-6">
-                        <label class="form-label" for="numero_documento"><i class="fa-solid fa-address-card me-1 text-muted"></i>Identificacion</label>
-                        <input
-                            type="text"
-                            class="form-control <?= isset($formErrors['numero_documento']) ? 'is-invalid' : ''; ?>"
-                            id="numero_documento"
-                            name="numero_documento"
-                            maxlength="20"
-                            pattern="[A-Za-z0-9\-]{5,20}"
-                            required
-                            value="<?= e((string) $formData['numero_documento']); ?>"
-                        >
-                        <div class="invalid-feedback"><?= e($formErrors['numero_documento'] ?? 'Ingrese una identificacion valida.'); ?></div>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label" for="genero"><i class="fa-solid fa-venus-mars me-1 text-muted"></i>Genero</label>
-                        <select class="form-select <?= isset($formErrors['genero']) ? 'is-invalid' : ''; ?>" id="genero" name="genero">
-                            <?php foreach ($genderOptions as $option): ?>
-                                <option value="<?= e($option); ?>" <?= (string) $formData['genero'] === $option ? 'selected' : ''; ?>>
-                                    <?= e($option !== '' ? $option : 'Seleccione'); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <div class="invalid-feedback"><?= e($formErrors['genero'] ?? 'Seleccione un genero valido.'); ?></div>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label" for="nombres"><i class="fa-solid fa-user me-1 text-muted"></i>Nombres</label>
-                        <input type="text" class="form-control <?= isset($formErrors['nombres']) ? 'is-invalid' : ''; ?>" id="nombres" name="nombres" minlength="2" maxlength="60" required value="<?= e((string) $formData['nombres']); ?>">
-                        <div class="invalid-feedback"><?= e($formErrors['nombres'] ?? 'Ingrese los nombres.'); ?></div>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label" for="apellidos"><i class="fa-solid fa-user-tag me-1 text-muted"></i>Apellidos</label>
-                        <input type="text" class="form-control <?= isset($formErrors['apellidos']) ? 'is-invalid' : ''; ?>" id="apellidos" name="apellidos" minlength="2" maxlength="60" required value="<?= e((string) $formData['apellidos']); ?>">
-                        <div class="invalid-feedback"><?= e($formErrors['apellidos'] ?? 'Ingrese los apellidos.'); ?></div>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label" for="fecha_nacimiento"><i class="fa-solid fa-cake-candles me-1 text-muted"></i>Fecha de nacimiento</label>
-                        <input type="date" class="form-control <?= isset($formErrors['fecha_nacimiento']) ? 'is-invalid' : ''; ?>" id="fecha_nacimiento" name="fecha_nacimiento" value="<?= e((string) $formData['fecha_nacimiento']); ?>">
-                        <div class="invalid-feedback"><?= e($formErrors['fecha_nacimiento'] ?? 'Ingrese una fecha valida.'); ?></div>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label" for="correo"><i class="fa-solid fa-envelope me-1 text-muted"></i>Correo</label>
-                        <input type="email" class="form-control <?= isset($formErrors['correo']) ? 'is-invalid' : ''; ?>" id="correo" name="correo" maxlength="120" value="<?= e((string) $formData['correo']); ?>">
-                        <div class="invalid-feedback"><?= e($formErrors['correo'] ?? 'Ingrese un correo valido.'); ?></div>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label" for="celular"><i class="fa-solid fa-phone me-1 text-muted"></i>Telefono</label>
-                        <input type="text" class="form-control <?= isset($formErrors['celular']) ? 'is-invalid' : ''; ?>" id="celular" name="celular" maxlength="20" pattern="[0-9+\-\s]{7,20}" required value="<?= e((string) $formData['celular']); ?>">
-                        <div class="invalid-feedback"><?= e($formErrors['celular'] ?? 'Ingrese un telefono valido.'); ?></div>
-                    </div>
-
-                    <div class="col-md-6">
-                        <label class="form-label" for="tipo_poblacion_id"><i class="fa-solid fa-people-group me-1 text-muted"></i>Tipo de poblacion</label>
-                        <select class="form-select <?= isset($formErrors['tipo_poblacion_id']) ? 'is-invalid' : ''; ?>" id="tipo_poblacion_id" name="tipo_poblacion_id">
-                            <option value="">Seleccione</option>
-                            <?php foreach ($tiposPoblacion as $tipo): ?>
-                                <?php $isSelected = (int) $formData['tipo_poblacion_id'] === (int) $tipo['id']; $isInactive = (int) $tipo['activo'] !== 1; $isDisabled = $isInactive && !$isSelected; ?>
-                                <option value="<?= e((string) $tipo['id']); ?>" <?= $isSelected ? 'selected' : ''; ?> <?= $isDisabled ? 'disabled' : ''; ?>>
-                                    <?= e((string) $tipo['nombre']); ?><?= $isInactive ? ' (Inactivo)' : ''; ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <div class="invalid-feedback"><?= e($formErrors['tipo_poblacion_id'] ?? 'Seleccione un tipo de poblacion valido.'); ?></div>
-                    </div>
-
-                    <div class="col-12">
-                        <label class="form-label" for="direccion"><i class="fa-solid fa-location-dot me-1 text-muted"></i>Direccion de domicilio</label>
-                        <textarea class="form-control <?= isset($formErrors['direccion']) ? 'is-invalid' : ''; ?>" id="direccion" name="direccion" rows="2" maxlength="255"><?= e((string) $formData['direccion']); ?></textarea>
-                        <div class="invalid-feedback"><?= e($formErrors['direccion'] ?? 'Revise la direccion.'); ?></div>
-                    </div>
-
-                    <div class="col-sm-6">
-                        <div class="form-check mt-1">
-                            <input class="form-check-input" type="checkbox" id="es_testigo" name="es_testigo" value="1" <?= (int) $formData['es_testigo'] === 1 ? 'checked' : ''; ?>>
-                            <label class="form-check-label" for="es_testigo"><i class="fa-solid fa-user-check me-1 text-muted"></i>Testigo</label>
+                        <div class="form-floating">
+                            <input
+                                type="text"
+                                class="form-control <?= isset($formErrors['numero_documento']) ? 'is-invalid' : ''; ?>"
+                                id="numero_documento"
+                                name="numero_documento"
+                                maxlength="20"
+                                pattern="[A-Za-z0-9\-]{5,20}"
+                                placeholder="Identificacion"
+                                required
+                                value="<?= e((string) $formData['numero_documento']); ?>"
+                            >
+                            <label for="numero_documento">Identificacion</label>
+                            <div class="invalid-feedback"><?= e($formErrors['numero_documento'] ?? 'Ingrese una identificacion valida.'); ?></div>
                         </div>
                     </div>
 
-                    <div class="col-sm-6">
-                        <div class="form-check mt-1">
-                            <input class="form-check-input" type="checkbox" id="es_jurado" name="es_jurado" value="1" <?= (int) $formData['es_jurado'] === 1 ? 'checked' : ''; ?>>
-                            <label class="form-check-label" for="es_jurado"><i class="fa-solid fa-scale-balanced me-1 text-muted"></i>Jurado</label>
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <select class="form-select <?= isset($formErrors['genero']) ? 'is-invalid' : ''; ?>" id="genero" name="genero" aria-label="Genero">
+                                <?php foreach ($genderOptions as $option): ?>
+                                    <option value="<?= e($option); ?>" <?= (string) $formData['genero'] === $option ? 'selected' : ''; ?>>
+                                        <?= e($option !== '' ? $option : 'Seleccione'); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <label for="genero">Genero</label>
+                            <div class="invalid-feedback"><?= e($formErrors['genero'] ?? 'Seleccione un genero valido.'); ?></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" class="form-control <?= isset($formErrors['nombres']) ? 'is-invalid' : ''; ?>" id="nombres" name="nombres" minlength="2" maxlength="60" placeholder="Nombres" required value="<?= e((string) $formData['nombres']); ?>">
+                            <label for="nombres">Nombres</label>
+                            <div class="invalid-feedback"><?= e($formErrors['nombres'] ?? 'Ingrese los nombres.'); ?></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" class="form-control <?= isset($formErrors['apellidos']) ? 'is-invalid' : ''; ?>" id="apellidos" name="apellidos" minlength="2" maxlength="60" placeholder="Apellidos" required value="<?= e((string) $formData['apellidos']); ?>">
+                            <label for="apellidos">Apellidos</label>
+                            <div class="invalid-feedback"><?= e($formErrors['apellidos'] ?? 'Ingrese los apellidos.'); ?></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" class="form-control <?= isset($formErrors['fecha_nacimiento']) ? 'is-invalid' : ''; ?>" id="fecha_nacimiento" name="fecha_nacimiento" placeholder="Fecha de nacimiento" value="<?= e((string) $formData['fecha_nacimiento']); ?>">
+                            <label for="fecha_nacimiento">Fecha de nacimiento</label>
+                            <div class="invalid-feedback"><?= e($formErrors['fecha_nacimiento'] ?? 'Ingrese una fecha valida.'); ?></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="email" class="form-control <?= isset($formErrors['correo']) ? 'is-invalid' : ''; ?>" id="correo" name="correo" maxlength="120" placeholder="Correo" value="<?= e((string) $formData['correo']); ?>">
+                            <label for="correo">Correo</label>
+                            <div class="invalid-feedback"><?= e($formErrors['correo'] ?? 'Ingrese un correo valido.'); ?></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" class="form-control <?= isset($formErrors['celular']) ? 'is-invalid' : ''; ?>" id="celular" name="celular" maxlength="20" pattern="[0-9+\-\s]{7,20}" placeholder="Telefono" required value="<?= e((string) $formData['celular']); ?>">
+                            <label for="celular">Telefono</label>
+                            <div class="invalid-feedback"><?= e($formErrors['celular'] ?? 'Ingrese un telefono valido.'); ?></div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <select class="form-select <?= isset($formErrors['tipo_poblacion_id']) ? 'is-invalid' : ''; ?>" id="tipo_poblacion_id" name="tipo_poblacion_id" aria-label="Tipo de poblacion">
+                                <option value="">Seleccione</option>
+                                <?php foreach ($tiposPoblacion as $tipo): ?>
+                                    <?php $isSelected = (int) $formData['tipo_poblacion_id'] === (int) $tipo['id']; $isInactive = (int) $tipo['activo'] !== 1; $isDisabled = $isInactive && !$isSelected; ?>
+                                    <option value="<?= e((string) $tipo['id']); ?>" <?= $isSelected ? 'selected' : ''; ?> <?= $isDisabled ? 'disabled' : ''; ?>>
+                                        <?= e((string) $tipo['nombre']); ?><?= $isInactive ? ' (Inactivo)' : ''; ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <label for="tipo_poblacion_id">Tipo de poblacion</label>
+                            <div class="invalid-feedback"><?= e($formErrors['tipo_poblacion_id'] ?? 'Seleccione un tipo de poblacion valido.'); ?></div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="form-floating">
+                            <textarea class="form-control <?= isset($formErrors['direccion']) ? 'is-invalid' : ''; ?>" id="direccion" name="direccion" placeholder="Direccion de domicilio" style="height: 78px;" maxlength="255"><?= e((string) $formData['direccion']); ?></textarea>
+                            <label for="direccion">Direccion de domicilio</label>
+                            <div class="invalid-feedback"><?= e($formErrors['direccion'] ?? 'Revise la direccion.'); ?></div>
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <div class="persona-role-grid">
+                            <label class="persona-role-option" for="es_testigo">
+                                <input class="form-check-input" type="checkbox" id="es_testigo" name="es_testigo" value="1" <?= (int) $formData['es_testigo'] === 1 ? 'checked' : ''; ?>>
+                                <span>
+                                    <span class="persona-role-title">Testigo</span>
+                                    <span class="persona-role-text">Marcar si la persona participa como testigo.</span>
+                                </span>
+                            </label>
+
+                            <label class="persona-role-option" for="es_jurado">
+                                <input class="form-check-input" type="checkbox" id="es_jurado" name="es_jurado" value="1" <?= (int) $formData['es_jurado'] === 1 ? 'checked' : ''; ?>>
+                                <span>
+                                    <span class="persona-role-title">Jurado</span>
+                                    <span class="persona-role-text">Marcar si la persona participa como jurado.</span>
+                                </span>
+                            </label>
                         </div>
                     </div>
                 </div>
