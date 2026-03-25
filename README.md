@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿# Sistema de Control de Asistencia (PHP + MySQL)
 
 Proyecto local compatible con XAMPP para administrar reuniones y registrar asistentes.
@@ -100,3 +101,6 @@ hacia:
 - `exports/` Endpoints de exportación
 - `libs/tcpdf/` Librería PDF local
 
+=======
+# PactoHistorico
+>>>>>>> 27c0da9444594feac59f234ab3aed8577fbefddb
