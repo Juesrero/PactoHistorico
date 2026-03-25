@@ -369,17 +369,35 @@ $paginationLink = static function (int $page, string $search, string $sortBy, st
         'p' => $page,
     ]);
 };
+
+$openAccordionPanel = 'persona';
+if ($importReport !== null) {
+    $openAccordionPanel = 'importar';
+}
+if ($typeFormMode === 'edit' || $typeFormErrors !== []) {
+    $openAccordionPanel = 'tipos';
+}
+if ($formMode === 'edit' || $formErrors !== []) {
+    $openAccordionPanel = 'persona';
+}
 ?>
 
 <section class="row g-3">
     <div class="col-xl-4">
-        <div class="card-clean p-4 mb-3">
-            <h1 class="h5 mb-1"><?= $formMode === 'edit' ? 'Editar persona' : 'Registrar persona'; ?></h1>
-            <p class="text-muted small mb-3">Complete la informacion principal sin afectar la compatibilidad del sistema actual.</p>
+        <div class="accordion" id="personasSidebarAccordion">
+            <div class="accordion-item card-clean mb-3 overflow-hidden">
+                <h2 class="accordion-header" id="headingPersonaForm">
+                    <button class="accordion-button <?= $openAccordionPanel !== 'persona' ? 'collapsed' : ''; ?>" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePersonaForm" aria-expanded="<?= $openAccordionPanel === 'persona' ? 'true' : 'false'; ?>" aria-controls="collapsePersonaForm">
+                        <?= $formMode === 'edit' ? 'Editar persona' : 'Registrar persona'; ?>
+                    </button>
+                </h2>
+                <div id="collapsePersonaForm" class="accordion-collapse collapse <?= $openAccordionPanel === 'persona' ? 'show' : ''; ?>" aria-labelledby="headingPersonaForm" data-bs-parent="#personasSidebarAccordion">
+                    <div class="accordion-body p-4">
+                        <p class="text-muted small mb-3">Complete la informacion principal sin afectar la compatibilidad del sistema actual.</p>
 
-            <?php if (isset($formErrors['general'])): ?>
-                <div class="alert alert-danger"><?= e($formErrors['general']); ?></div>
-            <?php endif; ?>
+                        <?php if (isset($formErrors['general'])): ?>
+                            <div class="alert alert-danger"><?= e($formErrors['general']); ?></div>
+                        <?php endif; ?>
 
             <form method="post" class="needs-validation" novalidate>
                 <?= csrf_field(); ?>
@@ -492,11 +510,19 @@ $paginationLink = static function (int $page, string $search, string $sortBy, st
                     <?php endif; ?>
                 </div>
             </form>
-        </div>
+                    </div>
+                </div>
+            </div>
 
-        <div class="card-clean p-4 mb-3">
-            <h2 class="h5 mb-1">Importar personas desde Excel</h2>
-            <p class="text-muted small mb-3">Compatible con plantillas nuevas y con el formato historico de nombre completo.</p>
+            <div class="accordion-item card-clean mb-3 overflow-hidden">
+                <h2 class="accordion-header" id="headingImportarPersonas">
+                    <button class="accordion-button <?= $openAccordionPanel !== 'importar' ? 'collapsed' : ''; ?>" type="button" data-bs-toggle="collapse" data-bs-target="#collapseImportarPersonas" aria-expanded="<?= $openAccordionPanel === 'importar' ? 'true' : 'false'; ?>" aria-controls="collapseImportarPersonas">
+                        Importar personas desde Excel
+                    </button>
+                </h2>
+                <div id="collapseImportarPersonas" class="accordion-collapse collapse <?= $openAccordionPanel === 'importar' ? 'show' : ''; ?>" aria-labelledby="headingImportarPersonas" data-bs-parent="#personasSidebarAccordion">
+                    <div class="accordion-body p-4">
+                        <p class="text-muted small mb-3">Compatible con plantillas nuevas y con el formato historico de nombre completo.</p>
 
             <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
                 <?= csrf_field(); ?>
@@ -539,15 +565,23 @@ $paginationLink = static function (int $page, string $search, string $sortBy, st
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
-        </div>
+                    </div>
+                </div>
+            </div>
 
-        <div id="tipos-poblacion" class="card-clean p-4">
-            <h2 class="h5 mb-1"><?= $typeFormMode === 'edit' ? 'Editar tipo de poblacion' : 'Tipos de poblacion'; ?></h2>
-            <p class="text-muted small mb-3">Catalogo configurable para clasificar personas y habilitar analisis posteriores.</p>
+            <div id="tipos-poblacion" class="accordion-item card-clean overflow-hidden">
+                <h2 class="accordion-header" id="headingTiposPoblacion">
+                    <button class="accordion-button <?= $openAccordionPanel !== 'tipos' ? 'collapsed' : ''; ?>" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTiposPoblacion" aria-expanded="<?= $openAccordionPanel === 'tipos' ? 'true' : 'false'; ?>" aria-controls="collapseTiposPoblacion">
+                        <?= $typeFormMode === 'edit' ? 'Editar tipo de poblacion' : 'Tipos de poblacion'; ?>
+                    </button>
+                </h2>
+                <div id="collapseTiposPoblacion" class="accordion-collapse collapse <?= $openAccordionPanel === 'tipos' ? 'show' : ''; ?>" aria-labelledby="headingTiposPoblacion" data-bs-parent="#personasSidebarAccordion">
+                    <div class="accordion-body p-4">
+                        <p class="text-muted small mb-3">Catalogo configurable para clasificar personas y habilitar analisis posteriores.</p>
 
-            <?php if (isset($typeFormErrors['general'])): ?>
-                <div class="alert alert-danger"><?= e($typeFormErrors['general']); ?></div>
-            <?php endif; ?>
+                        <?php if (isset($typeFormErrors['general'])): ?>
+                            <div class="alert alert-danger"><?= e($typeFormErrors['general']); ?></div>
+                        <?php endif; ?>
 
             <form method="post" class="needs-validation" novalidate>
                 <?= csrf_field(); ?>
@@ -626,6 +660,9 @@ $paginationLink = static function (int $page, string $search, string $sortBy, st
                         <?php endif; ?>
                     </tbody>
                 </table>
+            </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

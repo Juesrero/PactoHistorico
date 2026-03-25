@@ -53,6 +53,40 @@ body.app-body {
     box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
 }
 
+.accordion.card-clean,
+.accordion .accordion-item.card-clean {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+.accordion .accordion-item.card-clean + .accordion-item.card-clean {
+    margin-top: 0.85rem;
+}
+
+.accordion .accordion-item.card-clean .accordion-button {
+    background: linear-gradient(180deg, #fbfcfe 0%, #f4f7fb 100%);
+    color: var(--text);
+    font-weight: 700;
+    border-radius: 14px;
+    box-shadow: none;
+}
+
+.accordion .accordion-item.card-clean .accordion-button:not(.collapsed) {
+    color: var(--primary);
+    background: linear-gradient(180deg, #f9fbff 0%, #edf4fb 100%);
+    box-shadow: inset 0 -1px 0 rgba(15, 76, 129, 0.08);
+}
+
+.accordion .accordion-item.card-clean .accordion-button:focus {
+    box-shadow: 0 0 0 0.2rem rgba(15, 76, 129, 0.15);
+}
+
+.accordion .accordion-item.card-clean .accordion-body {
+    background: #ffffff;
+}
+
 .summary-card {
     border: 1px solid var(--border);
     border-radius: 14px;
