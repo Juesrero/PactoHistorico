@@ -64,8 +64,8 @@ class PersonasTemplateService
     private function plantillaRows(): array
     {
         return [
-            ['identificacion', 'nombres', 'apellidos', 'genero', 'fecha_nacimiento', 'correo', 'telefono', 'direccion', 'tipo_poblacion', 'es_testigo', 'es_jurado'],
-            ['1001234567', 'Camilo', 'Ochoa', 'Masculino', '1990-05-17', 'camilo.ochoa@ejemplo.com', '3001234567', 'Calle 10 #20-30', 'General', 'Si', 'No'],
+            ['identificacion', 'nombres', 'apellidos', 'genero', 'fecha_nacimiento', 'correo', 'telefono', 'direccion', 'tipo_poblacion', 'es_testigo', 'es_jurado', 'es_militante'],
+            ['1001234567', 'Camilo', 'Ochoa', 'Masculino', '1990-05-17', 'camilo.ochoa@ejemplo.com', '3001234567', 'Calle 10 #20-30', 'General', 'Si', 'No', 'Si'],
         ];
     }
 
@@ -87,11 +87,12 @@ class PersonasTemplateService
             ['tipo_poblacion', 'No', 'Debe coincidir con un tipo activo del catalogo.', 'General'],
             ['es_testigo', 'No', 'Use Si/No, 1/0 o Verdadero/Falso.', 'Si'],
             ['es_jurado', 'No', 'Use Si/No, 1/0 o Verdadero/Falso.', 'No'],
+            ['es_militante', 'No', 'Use Si/No, 1/0 o Verdadero/Falso.', 'Si'],
             ['', '', '', ''],
             ['Valores sugeridos', '', '', ''],
-            ['genero', '', 'Ejemplos frecuentes.', 'Femenino / Masculino / No binario / Otro / Prefiero no decir'],
+            ['genero', '', 'Valores permitidos actualmente.', 'Femenino / Masculino / Otro'],
             ['fecha_nacimiento', '', 'Siempre use formato de fecha ISO.', 'YYYY-MM-DD'],
-            ['es_testigo / es_jurado', '', 'Valores aceptados.', 'Si / No / 1 / 0 / Verdadero / Falso'],
+            ['es_testigo / es_jurado / es_militante', '', 'Valores aceptados.', 'Si / No / 1 / 0 / Verdadero / Falso'],
         ];
 
         $tipos = $this->tipoPoblacionService?->listActive();

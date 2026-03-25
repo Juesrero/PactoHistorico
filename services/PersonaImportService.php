@@ -125,6 +125,15 @@ class PersonaImportService
                 continue;
             }
 
+            $esMilitante = $this->parseBooleanFlag($input['es_militante']);
+            if ($esMilitante === null) {
+                $errors[] = [
+                    'row' => (int) $row['row_number'],
+                    'message' => 'Valor de es_militante invalido. Use 1/0, si/no o verdadero/falso.',
+                ];
+                continue;
+            }
+
             $tipoPoblacionId = null;
             if ($input['tipo_poblacion'] !== '') {
                 $tipoPoblacion = $this->resolveTipoPoblacion($input['tipo_poblacion']);
@@ -150,6 +159,7 @@ class PersonaImportService
                 'tipo_poblacion_id' => $tipoPoblacionId,
                 'es_testigo' => $esTestigo === 1 ? '1' : '0',
                 'es_jurado' => $esJurado === 1 ? '1' : '0',
+                'es_militante' => $esMilitante === 1 ? '1' : '0',
             ];
 
             [$clean, $validationErrors] = Validator::validatePersona($validationInput);
@@ -229,6 +239,7 @@ class PersonaImportService
             'tipo_poblacion' => ['tipo_poblacion', 'poblacion', 'grupo_poblacional'],
             'es_testigo' => ['es_testigo', 'testigo', 'testigo_si_no', 'testigo_1_0'],
             'es_jurado' => ['es_jurado', 'jurado', 'jurado_si_no', 'jurado_1_0'],
+            'es_militante' => ['es_militante', 'militante', 'militante_si_no', 'militante_1_0'],
         ];
 
         $normalizedHeaders = [];
@@ -318,6 +329,7 @@ class PersonaImportService
             'tipo_poblacion' => $pick($rowCells, $headerMap['tipo_poblacion'] ?? null),
             'es_testigo' => $pick($rowCells, $headerMap['es_testigo'] ?? null),
             'es_jurado' => $pick($rowCells, $headerMap['es_jurado'] ?? null),
+            'es_militante' => $pick($rowCells, $headerMap['es_militante'] ?? null),
         ];
     }
 

@@ -249,11 +249,11 @@ $availableCount = count($availablePersons);
                     </div>
 
                     <div class="col-md-6">
-                        <div class="form-floating">
-                            <input id="organizacion" name="organizacion" type="text" class="form-control <?= isset($formErrors['organizacion']) ? 'is-invalid' : ''; ?>" maxlength="120" placeholder="Organizacion o convocatoria" value="<?= e((string) $formData['organizacion']); ?>">
-                            <label for="organizacion">Organizacion o convocatoria</label>
+                        <div class="form-floating form-floating-optional">
+                            <input id="organizacion" name="organizacion" type="text" class="form-control <?= isset($formErrors['organizacion']) ? 'is-invalid' : ''; ?>" maxlength="120" placeholder="Organizacion" value="<?= e((string) $formData['organizacion']); ?>">
+                            <label for="organizacion">Organizacion</label>
+                            <span class="floating-field-note">Opcional</span>
                         </div>
-                        <div class="form-text">Opcional. Si se deja vacio, se guardara el mismo valor del tipo.</div>
                         <div class="invalid-feedback"><?= e($formErrors['organizacion'] ?? 'Revise este campo.'); ?></div>
                     </div>
                 </div>

@@ -57,6 +57,12 @@ $populationLabelsJson = $jsonEncode(array_map(static fn (array $row): string => 
 $populationValuesJson = $jsonEncode(array_map(static fn (array $row): int => (int) $row['total'], $populationRows));
 $ageLabelsJson = $jsonEncode(array_map(static fn (array $row): string => (string) $row['label'], $ageChartRows));
 $ageValuesJson = $jsonEncode(array_map(static fn (array $row): int => (int) $row['total'], $ageChartRows));
+$genderPalette = ['#1c3587', '#ff1a1f', '#ff9c00'];
+$populationPalette = ['#1c3587', '#3557c2', '#ff9c00', '#ffbd59', '#00a93f', '#49c96f', '#a52e94', '#c86fba', '#ff1a1f', '#ff6b70'];
+$agePalette = ['#1c3587', '#00a93f', '#ff9c00', '#ff1a1f', '#a52e94'];
+$genderPaletteJson = $jsonEncode($genderPalette);
+$populationPaletteJson = $jsonEncode($populationPalette);
+$agePaletteJson = $jsonEncode($agePalette);
 
 $filterCount = 0;
 foreach ($filters as $key => $value) {
@@ -211,9 +217,29 @@ foreach ($filters as $key => $value) {
                     class="chart-canvas"
                     data-chart-type="donut"
                     data-empty-text="Sin datos de genero."
+                    data-chart-palette='<?= e($genderPaletteJson); ?>'
                     data-labels='<?= e($genderLabelsJson); ?>'
                     data-values='<?= e($genderValuesJson); ?>'
                 ></canvas>
+            </div>
+            <div class="analysis-donut-legend mt-3">
+                <?php if ($genderRows === []): ?>
+                    <div class="small text-muted">No hay categorias de genero para mostrar con los filtros actuales.</div>
+                <?php else: ?>
+                    <?php foreach ($genderRows as $index => $row): ?>
+                        <div class="analysis-donut-legend-item">
+                            <span class="analysis-donut-legend-color" style="background: <?= e($genderPalette[$index % count($genderPalette)]); ?>;"></span>
+                            <div class="analysis-donut-legend-copy">
+                                <div class="analysis-donut-legend-label"><?= e((string) $row['etiqueta']); ?></div>
+                                <div class="analysis-donut-legend-meta">
+                                    <?= e((string) $row['total']); ?> personas
+                                    <span class="text-muted">|</span>
+                                    <?= e($formatPercent((int) $row['total'], $totalPersons)); ?>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -224,12 +250,13 @@ foreach ($filters as $key => $value) {
                 <h2 class="h5 mb-0">Tipo de poblacion</h2>
                 <small class="text-muted">Totales</small>
             </div>
-            <div class="chart-wrap">
+            <div class="chart-wrap chart-wrap-tall">
                 <canvas
                     id="chartAnalisisPoblacion"
                     class="chart-canvas"
-                    data-chart-type="bar"
+                    data-chart-type="bar-horizontal"
                     data-empty-text="Sin datos de tipo de poblacion."
+                    data-chart-palette='<?= e($populationPaletteJson); ?>'
                     data-labels='<?= e($populationLabelsJson); ?>'
                     data-values='<?= e($populationValuesJson); ?>'
                 ></canvas>
@@ -249,6 +276,7 @@ foreach ($filters as $key => $value) {
                     class="chart-canvas"
                     data-chart-type="bar"
                     data-empty-text="Sin datos de edad."
+                    data-chart-palette='<?= e($agePaletteJson); ?>'
                     data-labels='<?= e($ageLabelsJson); ?>'
                     data-values='<?= e($ageValuesJson); ?>'
                 ></canvas>

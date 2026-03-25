@@ -15,6 +15,7 @@ class PersonaService
         'correo' => 'p.correo',
         'es_testigo' => 'p.es_testigo',
         'es_jurado' => 'p.es_jurado',
+        'es_militante' => 'p.es_militante',
         'tipo_poblacion' => 'tp.nombre',
     ];
 
@@ -86,6 +87,7 @@ class PersonaService
                        tp.activo AS tipo_poblacion_activo,
                        p.es_testigo,
                        p.es_jurado,
+                       p.es_militante,
                        p.created_at
                 FROM personas p
                 LEFT JOIN tipos_poblacion tp ON tp.id = p.tipo_poblacion_id';
@@ -142,7 +144,8 @@ class PersonaService
                                             tp.nombre AS tipo_poblacion_nombre,
                                             tp.activo AS tipo_poblacion_activo,
                                             p.es_testigo,
-                                            p.es_jurado
+                                            p.es_jurado,
+                                            p.es_militante
                                      FROM personas p
                                      LEFT JOIN tipos_poblacion tp ON tp.id = p.tipo_poblacion_id
                                      WHERE p.id = :id
@@ -184,6 +187,7 @@ class PersonaService
                     tipo_poblacion_id,
                     es_testigo,
                     es_jurado,
+                    es_militante,
                     created_at,
                     updated_at
                 ) VALUES (
@@ -199,6 +203,7 @@ class PersonaService
                     :tipo_poblacion_id,
                     :es_testigo,
                     :es_jurado,
+                    :es_militante,
                     NOW(),
                     NOW()
                 )';
@@ -265,6 +270,7 @@ class PersonaService
                     tipo_poblacion_id,
                     es_testigo,
                     es_jurado,
+                    es_militante,
                     created_at,
                     updated_at
                 ) VALUES (
@@ -280,6 +286,7 @@ class PersonaService
                     :tipo_poblacion_id,
                     :es_testigo,
                     :es_jurado,
+                    :es_militante,
                     NOW(),
                     NOW()
                 )';
@@ -314,6 +321,7 @@ class PersonaService
                     tipo_poblacion_id = :tipo_poblacion_id,
                     es_testigo = :es_testigo,
                     es_jurado = :es_jurado,
+                    es_militante = :es_militante,
                     updated_at = NOW()
                 WHERE id = :id';
 
@@ -352,6 +360,7 @@ class PersonaService
             'tipo_poblacion_id' => isset($data['tipo_poblacion_id']) && (int) $data['tipo_poblacion_id'] > 0 ? (int) $data['tipo_poblacion_id'] : null,
             'es_testigo' => !empty($data['es_testigo']) ? 1 : 0,
             'es_jurado' => !empty($data['es_jurado']) ? 1 : 0,
+            'es_militante' => !empty($data['es_militante']) ? 1 : 0,
         ];
     }
 

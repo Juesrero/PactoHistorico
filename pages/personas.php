@@ -12,7 +12,7 @@ $requestedId = request_int($_GET, 'id', 0);
 $typeAction = request_string($_GET, 'type_action', 20);
 $requestedTypeId = request_int($_GET, 'type_id', 0);
 
-$allowedSorts = ['id', 'nombres', 'apellidos', 'numero_documento', 'celular', 'correo', 'es_testigo', 'es_jurado', 'tipo_poblacion'];
+$allowedSorts = ['id', 'nombres', 'apellidos', 'numero_documento', 'celular', 'correo', 'es_testigo', 'es_jurado', 'es_militante', 'tipo_poblacion'];
 $sortBy = request_string($_GET, 'sort', 30);
 if (!in_array($sortBy, $allowedSorts, true)) {
     $sortBy = 'id';
@@ -42,6 +42,7 @@ $formData = [
     'tipo_poblacion_id' => 0,
     'es_testigo' => 0,
     'es_jurado' => 0,
+    'es_militante' => 0,
 ];
 
 $typeFormMode = 'create';
@@ -54,7 +55,7 @@ $typeFormData = [
 ];
 
 $maxImportErrorsToShow = 12;
-$genderOptions = ['', 'Femenino', 'Masculino', 'No binario', 'Otro', 'Prefiero no decir'];
+$genderOptions = ['', 'Femenino', 'Masculino', 'Otro'];
 
 $splitLegacyFullName = static function (string $fullName): array {
     $fullName = trim($fullName);
@@ -320,6 +321,7 @@ if ($action === 'edit' && $requestedId > 0 && $formMode !== 'edit') {
         'tipo_poblacion_id' => (int) ($persona['tipo_poblacion_id'] ?? 0),
         'es_testigo' => (int) $persona['es_testigo'],
         'es_jurado' => (int) ($persona['es_jurado'] ?? 0),
+        'es_militante' => (int) ($persona['es_militante'] ?? 0),
     ];
 }
 
@@ -509,12 +511,11 @@ if ($formMode === 'edit' || $formErrors !== []) {
                     </div>
 
                     <div class="col-12">
-                        <div class="persona-role-grid">
+                        <div class="persona-role-grid persona-role-grid-triple">
                             <label class="persona-role-option" for="es_testigo">
                                 <input class="form-check-input" type="checkbox" id="es_testigo" name="es_testigo" value="1" <?= (int) $formData['es_testigo'] === 1 ? 'checked' : ''; ?>>
                                 <span>
                                     <span class="persona-role-title">Testigo</span>
-                                    <span class="persona-role-text">Marcar si la persona participa como testigo.</span>
                                 </span>
                             </label>
 
@@ -522,7 +523,13 @@ if ($formMode === 'edit' || $formErrors !== []) {
                                 <input class="form-check-input" type="checkbox" id="es_jurado" name="es_jurado" value="1" <?= (int) $formData['es_jurado'] === 1 ? 'checked' : ''; ?>>
                                 <span>
                                     <span class="persona-role-title">Jurado</span>
-                                    <span class="persona-role-text">Marcar si la persona participa como jurado.</span>
+                                </span>
+                            </label>
+
+                            <label class="persona-role-option" for="es_militante">
+                                <input class="form-check-input" type="checkbox" id="es_militante" name="es_militante" value="1" <?= (int) $formData['es_militante'] === 1 ? 'checked' : ''; ?>>
+                                <span>
+                                    <span class="persona-role-title">Militante</span>
                                 </span>
                             </label>
                         </div>
@@ -563,7 +570,7 @@ if ($formMode === 'edit' || $formErrors !== []) {
                 <p class="small text-muted mb-3">
                     Requerido: <code>identificacion</code>/<code>numero_documento</code>, <code>telefono</code>/<code>celular</code> y
                     <code>nombres</code> + <code>apellidos</code> o <code>nombres_apellidos</code>.
-                    Opcionales: <code>genero</code>, <code>fecha_nacimiento</code>, <code>correo</code>, <code>direccion</code>, <code>tipo_poblacion</code>, <code>es_testigo</code>, <code>es_jurado</code>.
+                    Opcionales: <code>genero</code>, <code>fecha_nacimiento</code>, <code>correo</code>, <code>direccion</code>, <code>tipo_poblacion</code>, <code>es_testigo</code>, <code>es_jurado</code>, <code>es_militante</code>.
                 </p>
 
                 <div class="d-grid gap-2">
@@ -789,6 +796,7 @@ if ($formMode === 'edit' || $formErrors !== []) {
                                         <div class="d-flex flex-wrap gap-1">
                                             <span class="badge <?= (int) $persona['es_testigo'] === 1 ? 'text-bg-success' : 'text-bg-secondary'; ?>">Testigo: <?= (int) $persona['es_testigo'] === 1 ? 'Si' : 'No'; ?></span>
                                             <span class="badge <?= (int) ($persona['es_jurado'] ?? 0) === 1 ? 'text-bg-warning' : 'text-bg-secondary'; ?>">Jurado: <?= (int) ($persona['es_jurado'] ?? 0) === 1 ? 'Si' : 'No'; ?></span>
+                                            <span class="badge <?= (int) ($persona['es_militante'] ?? 0) === 1 ? 'text-bg-primary' : 'text-bg-secondary'; ?>">Militante: <?= (int) ($persona['es_militante'] ?? 0) === 1 ? 'Si' : 'No'; ?></span>
                                         </div>
                                     </td>
                                     <td class="text-end actions-col">

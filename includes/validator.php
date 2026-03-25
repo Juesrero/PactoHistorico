@@ -20,6 +20,7 @@ class Validator
             : null;
         $esTestigo = self::inputToBool($input['es_testigo'] ?? 0) ? 1 : 0;
         $esJurado = self::inputToBool($input['es_jurado'] ?? 0) ? 1 : 0;
+        $esMilitante = self::inputToBool($input['es_militante'] ?? 0) ? 1 : 0;
 
         if ($documento === '') {
             $errors['numero_documento'] = 'La identificacion es obligatoria.';
@@ -44,7 +45,7 @@ class Validator
             $errors['nombres'] = 'El nombre completo no puede superar 120 caracteres.';
         }
 
-        $allowedGeneros = ['', 'Femenino', 'Masculino', 'No binario', 'Otro', 'Prefiero no decir'];
+        $allowedGeneros = ['', 'Femenino', 'Masculino', 'Otro'];
         if (!in_array($genero, $allowedGeneros, true)) {
             $errors['genero'] = 'Seleccione un genero valido.';
         }
@@ -92,6 +93,7 @@ class Validator
             'tipo_poblacion_id' => $tipoPoblacionId,
             'es_testigo' => $esTestigo,
             'es_jurado' => $esJurado,
+            'es_militante' => $esMilitante,
         ], $errors];
     }
 

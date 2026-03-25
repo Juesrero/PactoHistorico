@@ -161,6 +161,22 @@ PREPARE stmt_personas_es_jurado FROM @sql_personas_es_jurado;
 EXECUTE stmt_personas_es_jurado;
 DEALLOCATE PREPARE stmt_personas_es_jurado;
 
+SET @col_personas_es_militante = (
+    SELECT COUNT(1)
+    FROM information_schema.columns
+    WHERE table_schema = @db_name
+      AND table_name = 'personas'
+      AND column_name = 'es_militante'
+);
+SET @sql_personas_es_militante = IF(
+    @col_personas_es_militante = 0,
+    'ALTER TABLE personas ADD COLUMN es_militante TINYINT(1) NOT NULL DEFAULT 0 AFTER es_jurado',
+    'SELECT ''personas.es_militante already exists'''
+);
+PREPARE stmt_personas_es_militante FROM @sql_personas_es_militante;
+EXECUTE stmt_personas_es_militante;
+DEALLOCATE PREPARE stmt_personas_es_militante;
+
 SET @idx_personas_nombres_exists = (
     SELECT COUNT(1)
     FROM information_schema.statistics
