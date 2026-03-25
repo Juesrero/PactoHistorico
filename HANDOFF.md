@@ -1,37 +1,107 @@
-﻿# HANDOFF - PactoH (Control de Asistencia)
+# HANDOFF - PactoH
 
-## 1. Objetivo del proyecto
-Aplicacion web local para control de asistencia de reuniones, desarrollada en:
-- PHP puro (sin framework)
-- MySQL
-- Bootstrap 5 + CSS/JS propio
-- PDO con sentencias preparadas
+## 1. Resumen del proyecto
+Aplicacion web local para gestion de personas, reuniones, asistencia, actas y analisis sociodemografico.
+
+Stack actual:
+- PHP puro
+- MySQL / MariaDB
+- PDO con consultas preparadas
+- Bootstrap 5
+- CSS y JS propios
+- TCPDF local para PDF
 - Compatible con XAMPP
 
-## 2. Estado actual (resumen)
-El sistema ya tiene implementado:
+No usa framework, Composer ni Node.
+
+## 2. Modulos existentes
+### 2.1 Dashboard
+- Ruta: `index.php?page=dashboard`
+- Resumen general de reuniones, personas, asistencias y testigos
+- Graficos simples en canvas
+- Proxima reunion
+
+### 2.2 Personas
+- Ruta: `index.php?page=personas`
+- CRUD de personas
+- Busqueda, ordenamiento y paginacion
+- Importacion masiva desde Excel `.xlsx`
+- Gestion de tipos de poblacion configurables en la misma pantalla
+
+Campos principales:
+- identificacion / `numero_documento`
+- nombres
+- apellidos
+- genero
+- fecha de nacimiento
+- correo
+- telefono / `celular`
+- direccion
+- tipo de poblacion
+- testigo
+- jurado
+
+### 2.3 Reuniones
+- Ruta: `index.php?page=reuniones`
 - CRUD de reuniones
-- CRUD de personas con busqueda
-- Registro y eliminacion de asistencias desde el detalle de reunion
-- Validaciones backend y frontend
-- Proteccion CSRF
-- Exportacion por reunion:
-  - Excel (.xls HTML compatible con Excel)
-  - PDF (TCPDF local)
+- Detalle operativo de reunion
+- Registro de asistencia desde el detalle
+- Exportacion Excel/PDF por reunion
 
-Tambien incluye logo en interfaz y exportaciones.
+Campos principales:
+- nombre de reunion
+- objetivo
+- tipo de reunion
+- organizacion o convocatoria
+- lugar
+- fecha
+- hora
 
-## 3. Entorno esperado
-- Ruta del proyecto: `C:\xampp\htdocs\PactoH`
-- PHP: `C:\xampp\php\php.exe`
-- DB por defecto:
-  - host: `127.0.0.1`
-  - puerto: `3306`
-  - base: `pacto_asistencia`
-  - usuario: `root`
-  - password: vacio
+### 2.4 Asistencia
+- Flujo principal dentro del detalle de una reunion
+- Ruta legado adicional: `index.php?page=asistencias`
+- Prevencion de duplicados por `(reunion_id, persona_id)`
+- Totales de asistentes y testigos
+- Eliminacion con confirmacion
 
-## 4. Estructura del proyecto
+### 2.5 Actas
+- Ruta: `index.php?page=actas`
+- Listado de actas
+- Creacion de acta
+- Edicion de datos basicos
+- Detalle de acta
+- Adjuntar y descargar archivo
+
+Formatos permitidos:
+- PDF
+- DOC
+- DOCX
+
+El consecutivo se genera automaticamente con formato tipo `ACTA-000001`.
+
+### 2.6 Analisis sociodemografico
+- Ruta: `index.php?page=analisis`
+- Indicadores poblacionales calculados desde `personas`
+- Filtros por genero, tipo de poblacion, testigo, jurado y rango de edad
+- Graficos simples compatibles con el frontend actual
+
+## 3. Cambios realizados en esta etapa
+- Expansion del modulo de personas sin romper compatibilidad historica
+- Creacion y administracion de `tipos_poblacion`
+- Ajuste del modulo de reuniones para soportar el nuevo alcance
+- Refinamiento visual y funcional de asistencia dentro del detalle de reunion
+- Creacion del modulo de actas con upload y descarga segura
+- Creacion del modulo de analisis sociodemografico
+- Pulido final de UX:
+  - alertas visuales mas consistentes
+  - estados vacios mas claros
+  - foco automatico al primer campo invalido
+- Refuerzo de seguridad:
+  - verificacion CSRF en formularios POST
+  - validacion de archivos en actas
+  - validacion mas estricta del import `.xlsx`
+
+## 4. Estructura actual del proyecto
 ```text
 PactoH/
 ├─ index.php
@@ -44,6 +114,29 @@ PactoH/
 │  ├─ app.php
 │  ├─ database.php
 │  └─ session.php
+├─ database/
+│  ├─ schema.sql
+│  ├─ fase1_nuevo_alcance_propuesta.sql
+│  ├─ module_personas_update.sql
+│  ├─ module_reuniones_update.sql
+│  └─ module_actas_create.sql
+├─ docs/
+│  ├─ diagnostico_fase1.md
+│  ├─ nota_tecnica_personas_fase2.md
+│  ├─ nota_tecnica_reuniones_fase2.md
+│  ├─ nota_tecnica_asistencia_refinamiento.md
+│  ├─ nota_tecnica_actas.md
+│  └─ nota_tecnica_analisis_sociodemografico.md
+├─ downloads/
+│  ├─ bootstrap.php
+│  └─ actas/
+│     └─ descargar.php
+├─ exports/
+│  ├─ bootstrap.php
+│  ├─ excel/
+│  │  └─ reunion_asistencia_excel.php
+│  └─ pdf/
+│     └─ reunion_asistencia_pdf.php
 ├─ includes/
 │  ├─ helpers.php
 │  ├─ router.php
@@ -52,217 +145,229 @@ PactoH/
 │     ├─ header.php
 │     ├─ navbar.php
 │     └─ footer.php
+├─ libs/
+│  └─ tcpdf/
 ├─ pages/
 │  ├─ dashboard.php
 │  ├─ personas.php
 │  ├─ reuniones.php
+│  ├─ actas.php
+│  ├─ analisis.php
 │  ├─ asistencias.php
 │  └─ 404.php
 ├─ services/
+│  ├─ ExportService.php
+│  ├─ ActaService.php
+│  ├─ AnalisisService.php
 │  ├─ PersonaService.php
+│  ├─ PersonaImportService.php
 │  ├─ ReunionService.php
-│  └─ ExportService.php
-├─ database/
-│  ├─ schema.sql
-│  ├─ module_1_2_update.sql
-│  └─ module_asistencia_update.sql
-├─ exports/
-│  ├─ bootstrap.php
-│  ├─ excel/
-│  │  ├─ reunion_asistencia_excel.php
-│  │  └─ README.txt
-│  └─ pdf/
-│     ├─ reunion_asistencia_pdf.php
-│     └─ README.txt
-├─ libs/
-│  └─ tcpdf/ ... (libreria PDF local)
+│  ├─ TipoPoblacionService.php
+│  └─ XlsxReader.php
+├─ storage/
+│  ├─ .htaccess
+│  ├─ index.html
+│  └─ actas/
 └─ Logo/
    ├─ pacto.png
    └─ pacto_pdf.jpg
 ```
 
-## 5. Flujo de ejecucion (arquitectura)
-1. `index.php` es el front controller.
-2. Carga config, sesion, conexion, helpers, validator, router y servicios.
-3. `includes/router.php` resuelve `?page=` hacia un archivo en `pages/`.
-4. `includes/layout/header.php` y `footer.php` envuelven cada pagina.
-5. Cada pagina maneja su logica `POST` + renderizado.
+## 5. Arquitectura de ejecucion
+1. `index.php` funciona como front controller.
+2. Carga configuracion, sesion, conexion, helpers, validadores y servicios.
+3. `includes/router.php` resuelve la pagina por `?page=`.
+4. Cada archivo en `pages/` maneja su logica de entrada y su renderizado.
+5. `includes/layout/*` envuelve la salida HTML.
 
-## 6. Rutas funcionales
-Definidas en `includes/router.php`:
-- `?page=dashboard`
-- `?page=personas`
-- `?page=reuniones`
-- `?page=asistencias` (pantalla legado; la operacion principal de asistencia esta en detalle de reuniones)
+## 6. Base de datos final esperada
+Base por defecto:
+- host: `127.0.0.1`
+- puerto: `3306`
+- base: `pacto_asistencia`
+- usuario: `root`
+- password: vacio
 
-## 7. Modulo Personas (`pages/personas.php`)
-Acciones por `form_action`:
-- `create_persona`
-- `update_persona`
-- `delete_persona`
-
-Funcionalidades:
-- Listado
-- Busqueda por nombre/documento/celular (`GET q`)
-- Alta
-- Edicion
-- Eliminacion con confirmacion JS (`data-confirm`)
-- Regla de documento unico (consulta + indice unico DB)
-
-Servicio usado:
-- `services/PersonaService.php`
-
-## 8. Modulo Reuniones + Asistencia (`pages/reuniones.php`)
-Acciones reuniones:
-- `create_reunion`
-- `update_reunion`
-- `delete_reunion`
-
-Acciones asistencia desde detalle de reunion:
-- `add_asistencia`
-- `remove_asistencia`
-
-Parametros clave:
-- `action=detail&id={reunion}` para detalle completo
-- `person_q` para buscar personas al agregar asistencia
-
-Detalle de reunion muestra:
-- Datos de reunion
-- Totales: asistentes y testigos
-- Form para agregar asistencia (persona existente)
-- Tabla de asistentes de esa reunion
-- Boton para quitar asistencia
-- Botones exportar Excel/PDF
-
-Servicio usado:
-- `services/ReunionService.php`
-
-## 9. Exportaciones
-### 9.1 Excel
-Archivo:
-- `exports/excel/reunion_asistencia_excel.php?reunion_id={id}`
-
-Caracteristicas:
-- Descarga `.xls` con HTML tabular compatible con Excel
-- BOM UTF-8 para caracteres especiales
-- Incluye logo
-- Incluye datos de reunion
-- Incluye listado de asistentes
-- Incluye total asistentes y total testigos
-
-### 9.2 PDF
-Archivo:
-- `exports/pdf/reunion_asistencia_pdf.php?reunion_id={id}`
-
-Caracteristicas:
-- Usa TCPDF local (`libs/tcpdf`)
-- Incluye logo
-- Incluye datos de reunion
-- Tabla de asistentes
-- Totales al final
-- Nombre de archivo: `asistencia_reunion_{id}_{YYYY-MM-DD}.pdf`
-
-### 9.3 Bootstrap de export
-Archivo:
-- `exports/bootstrap.php`
-
-Responsabilidad:
-- Carga config comun para exportadores
-- Valida `reunion_id`
-- Redirecciona a `index.php?page=reuniones` con flash en caso de error
-
-## 10. Nota importante sobre logo PDF
-Problema historico:
-- TCPDF arroja error con PNG de transparencia cuando no hay GD/Imagick.
-
-Solucion aplicada:
-- Se genero `Logo/pacto_pdf.jpg` (sin alpha) y el PDF lo usa primero.
-- Fallback: JPG/JPEG y luego PNG.
-
-Metodo relevante:
-- `ExportService::resolveLogoPathForPdf()`
-
-## 11. Base de datos
-Script base:
-- `database/schema.sql`
-
-Tablas:
-- `reuniones`
+Tablas principales:
 - `personas`
+- `tipos_poblacion`
+- `reuniones`
 - `asistencias`
+- `consecutivos`
+- `actas`
 
-Reglas clave:
-- `personas.numero_documento` unico
-- `asistencias (reunion_id, persona_id)` unico
-- FK con cascade en asistencias
+Tabla legado que puede seguir existiendo:
+- `acta_adjuntos`
 
-Scripts de ajuste:
-- `database/module_1_2_update.sql` (indices en personas/reuniones)
-- `database/module_asistencia_update.sql` (indices/constraint asistencia)
+### 6.1 Tabla `personas`
+Campos relevantes:
+- `id`
+- `nombres_apellidos`
+- `nombres`
+- `apellidos`
+- `numero_documento`
+- `genero`
+- `fecha_nacimiento`
+- `correo`
+- `celular`
+- `direccion`
+- `tipo_poblacion_id`
+- `es_testigo`
+- `es_jurado`
+- `created_at`
+- `updated_at`
 
-## 12. Helpers y validaciones
-Helpers principales en `includes/helpers.php`:
-- URL/ruteo: `url`, `page_url`, `page_url_with_query`
-- Redireccion: `redirect_to`, `redirect_to_url`
-- Flash messages: `flash`, `get_flash`
-- CSRF: `csrf_token`, `csrf_field`, `verify_csrf`
-- Request safe parsing: `request_string`, `request_int`
+Reglas:
+- `numero_documento` unico
 
-Validaciones en `includes/validator.php`:
-- `validatePersona`
-- `validateReunion`
-- `validateAsistencia`
+### 6.2 Tabla `tipos_poblacion`
+Campos relevantes:
+- `id`
+- `nombre`
+- `descripcion`
+- `activo`
+- `created_at`
+- `updated_at`
 
-## 13. Seguridad actual
-- PDO + consultas preparadas
+### 6.3 Tabla `reuniones`
+Campos relevantes:
+- `id`
+- `nombre_reunion`
+- `objetivo`
+- `tipo_reunion`
+- `organizacion`
+- `lugar_reunion`
+- `fecha`
+- `hora`
+- `created_at`
+- `updated_at`
+
+### 6.4 Tabla `asistencias`
+Campos relevantes:
+- `id`
+- `reunion_id`
+- `persona_id`
+- `fecha_registro`
+- `hora_registro`
+- `observacion`
+- `created_at`
+
+Reglas:
+- unico por `reunion_id + persona_id`
+- FK con cascade a `reuniones` y `personas`
+
+### 6.5 Tabla `consecutivos`
+Campos relevantes:
+- `modulo` o `clave` segun historial de la base
+- `ultimo_numero`
+- `updated_at` o `fecha_actualizacion`
+
+El servicio de actas ya soporta ambas variantes.
+
+### 6.6 Tabla `actas`
+Campos relevantes esperados:
+- `id`
+- `consecutivo`
+- `nombre_o_objetivo`
+- `responsable`
+- `lugar`
+- `nombre_archivo_original`
+- `ruta_archivo`
+- `tipo_mime`
+- `fecha_creacion`
+- `fecha_actualizacion`
+
+Compatibilidad:
+- si la tabla venia de un esquema legado, `module_actas_create.sql` la migra de forma incremental
+
+## 7. Scripts SQL importantes
+- `database/schema.sql`
+  - esquema base completo para instalaciones nuevas
+- `database/module_personas_update.sql`
+  - ajuste incremental de personas
+- `database/module_reuniones_update.sql`
+  - ajuste incremental de reuniones
+- `database/module_actas_create.sql`
+  - creacion/migracion incremental del modulo de actas
+
+## 8. Pasos de instalacion en XAMPP
+1. Copiar el proyecto a `C:\xampp\htdocs\PactoH`
+2. Iniciar Apache y MySQL desde XAMPP
+3. Crear la base o ejecutar `database/schema.sql`
+4. Si se parte de una instalacion anterior, ejecutar los scripts incrementales necesarios:
+   - `database/module_personas_update.sql`
+   - `database/module_reuniones_update.sql`
+   - `database/module_actas_create.sql`
+5. Verificar permisos de escritura en:
+   - `storage/`
+   - `storage/actas/`
+6. Abrir en navegador:
+   - `http://localhost/PactoH/index.php?page=dashboard`
+
+## 9. Rutas importantes
+- Dashboard:
+  - `index.php?page=dashboard`
+- Personas:
+  - `index.php?page=personas`
+- Reuniones:
+  - `index.php?page=reuniones`
+- Actas:
+  - `index.php?page=actas`
+- Analisis:
+  - `index.php?page=analisis`
+- Asistencias legado:
+  - `index.php?page=asistencias`
+
+Exportaciones:
+- Excel asistencia:
+  - `exports/excel/reunion_asistencia_excel.php?reunion_id={id}`
+- PDF asistencia:
+  - `exports/pdf/reunion_asistencia_pdf.php?reunion_id={id}`
+
+Descarga de actas:
+- `downloads/actas/descargar.php?id={id}`
+
+## 10. Seguridad actual
+- CSRF en todos los formularios POST de modulos principales
 - Escape HTML con `e()`
-- Token CSRF en formularios POST
-- Confirmaciones UI para borrados
-- Validaciones server-side y client-side
+- PDO con consultas preparadas en CRUD y filtros
+- Confirmaciones visuales para acciones destructivas
+- Upload de actas validado por:
+  - extension
+  - MIME con `finfo`
+  - tamano maximo
+  - `is_uploaded_file`
+  - nombres saneados
+- Import Excel validado por:
+  - extension `.xlsx`
+  - MIME permitido
+  - tamano maximo
+  - archivo temporal valido
 
-## 14. Convenciones de codigo
-- `declare(strict_types=1)` en archivos PHP principales
-- Texto UI mayormente en ASCII (para evitar issues de encoding en entorno local)
-- Se recomienda guardar PHP en UTF-8 **sin BOM**
-  - Si aparece error `strict_types declaration must be the very first statement`, revisar BOM
+## 11. QA manual recomendado
+1. Crear una persona con tipo de poblacion, testigo y jurado.
+2. Editar y buscar personas por identificacion y nombre.
+3. Importar un Excel `.xlsx` valido y validar errores controlados.
+4. Crear una reunion.
+5. Desde el detalle de reunion, registrar asistencia y probar duplicado.
+6. Quitar asistencia con confirmacion.
+7. Exportar asistencia a Excel.
+8. Exportar asistencia a PDF.
+9. Crear un acta sin archivo.
+10. Crear o actualizar un acta con PDF, DOC o DOCX.
+11. Descargar el archivo del acta.
+12. Abrir `Analisis` y probar filtros.
 
-## 15. Dependencias externas
-- TCPDF local: `libs/tcpdf`
-- No Composer
-- No Node
+## 12. Pendientes futuros sugeridos
+- Decidir si `pages/asistencias.php` se mantiene o se redirige al detalle de reuniones
+- Agregar autenticacion y control de permisos si el sistema deja de ser solo local
+- Agregar auditoria de acciones CRUD y descargas
+- Mejorar exportaciones para incluir mas metadatos si negocio lo requiere
+- Evaluar normalizar completamente actas y retirar tablas/campos legado cuando ya no se necesiten
+- Agregar pruebas funcionales automatizadas si el proyecto crece
 
-## 16. QA rapido (manual)
-1. Crear reunion.
-2. Crear personas (incluyendo testigo).
-3. En `Reuniones > Ver`, agregar asistentes por buscador.
-4. Intentar registrar duplicado (debe mostrar alerta).
-5. Quitar asistencia (debe funcionar y actualizar totales).
-6. Exportar Excel (descarga correcta, tabla y totales).
-7. Exportar PDF (descarga correcta y logo visible).
-
-## 17. Comandos utiles
-Lint de todo PHP:
-```powershell
-$phpFiles = Get-ChildItem -Recurse -File -Filter *.php | Select-Object -ExpandProperty FullName
-foreach($file in $phpFiles){ & 'C:\xampp\php\php.exe' -l $file }
-```
-
-## 18. Riesgos / pendientes sugeridos
-- `pages/asistencias.php` existe como pantalla separada legado; decidir si:
-  - se mantiene, o
-  - se simplifica/redirige a `reuniones?action=detail`
-- Agregar paginacion para listados grandes
-- Agregar auditoria/log de acciones CRUD/export
-- Agregar control de usuarios/permisos (si entra autenticacion)
-- Mejorar manejo de timezone/locale en exportes
-
-## 19. Punto de partida recomendado para el siguiente agente
-Si hay que continuar desarrollo, empezar por:
-1. Leer `pages/reuniones.php` y `services/ReunionService.php` (nucleo funcional actual).
-2. Revisar `exports/*` para cualquier cambio de formato.
-3. Ejecutar QA rapido del punto 16.
-4. Mantener consistencia con `helpers.php` y `validator.php`.
-
-## 20. Observaciones de handoff
-- Proyecto no esta en repo git dentro de esta carpeta (no hay `.git` local).
-- Ultimo ajuste tecnico: export PDF robusto para entornos sin GD/Imagick.
+## 13. Observaciones finales
+- Mantener PHP en UTF-8 sin BOM
+- No usar `git reset --hard` ni cambios destructivos en instalaciones ya pobladas
+- Si aparece un error por actas en una base vieja, volver a ejecutar `database/module_actas_create.sql`
+- No se ha migrado a framework y no se recomienda hacerlo en caliente sin una fase aparte

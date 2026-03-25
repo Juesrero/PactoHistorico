@@ -15,6 +15,7 @@ class ExportService
         $meetingSql = 'SELECT r.id,
                               r.nombre_reunion,
                               r.objetivo,
+                              r.tipo_reunion,
                               r.organizacion,
                               r.lugar_reunion,
                               r.fecha,
@@ -31,7 +32,7 @@ class ExportService
             return null;
         }
 
-        $attendeesSql = 'SELECT p.nombres_apellidos,
+        $attendeesSql = 'SELECT COALESCE(NULLIF(TRIM(CONCAT_WS(" ", p.nombres, p.apellidos)), ""), p.nombres_apellidos) AS nombre_persona,
                                 p.numero_documento,
                                 p.celular,
                                 p.es_testigo,
@@ -40,7 +41,7 @@ class ExportService
                          FROM asistencias a
                          INNER JOIN personas p ON p.id = a.persona_id
                          WHERE a.reunion_id = :reunion_id
-                         ORDER BY p.nombres_apellidos ASC';
+                         ORDER BY nombre_persona ASC';
 
         $attendeesStmt = $this->pdo->prepare($attendeesSql);
         $attendeesStmt->execute(['reunion_id' => $reunionId]);

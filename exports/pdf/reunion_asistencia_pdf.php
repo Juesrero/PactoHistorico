@@ -57,6 +57,7 @@ $pdf->SetFont('dejavusans', '', 10);
 $metaHtml = '<table border="1" cellpadding="5" cellspacing="0">
 <tr><td width="180"><b>Nombre de la reunion</b></td><td width="340">' . htmlspecialchars((string) $meeting['nombre_reunion'], ENT_QUOTES, 'UTF-8') . '</td></tr>
 <tr><td width="180"><b>Objetivo</b></td><td width="340">' . htmlspecialchars((string) $meeting['objetivo'], ENT_QUOTES, 'UTF-8') . '</td></tr>
+<tr><td width="180"><b>Tipo de reunion</b></td><td width="340">' . htmlspecialchars((string) ($meeting['tipo_reunion'] ?? ''), ENT_QUOTES, 'UTF-8') . '</td></tr>
 <tr><td width="180"><b>Organizacion</b></td><td width="340">' . htmlspecialchars((string) $meeting['organizacion'], ENT_QUOTES, 'UTF-8') . '</td></tr>
 <tr><td width="180"><b>Lugar reunion</b></td><td width="340">' . htmlspecialchars((string) $meeting['lugar_reunion'], ENT_QUOTES, 'UTF-8') . '</td></tr>
 <tr><td width="180"><b>Fecha</b></td><td width="340">' . htmlspecialchars((string) $meeting['fecha'], ENT_QUOTES, 'UTF-8') . '</td></tr>
@@ -84,7 +85,7 @@ if ($attendees === []) {
 } else {
     foreach ($attendees as $attendee) {
         $rowsHtml .= '<tr>'
-            . '<td width="155">' . htmlspecialchars((string) $attendee['nombres_apellidos'], ENT_QUOTES, 'UTF-8') . '</td>'
+            . '<td width="155">' . htmlspecialchars((string) $attendee['nombre_persona'], ENT_QUOTES, 'UTF-8') . '</td>'
             . '<td width="92">' . htmlspecialchars((string) $attendee['numero_documento'], ENT_QUOTES, 'UTF-8') . '</td>'
             . '<td width="85">' . htmlspecialchars((string) $attendee['celular'], ENT_QUOTES, 'UTF-8') . '</td>'
             . '<td width="58">' . ((int) $attendee['es_testigo'] === 1 ? 'Si' : 'No') . '</td>'

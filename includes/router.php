@@ -16,6 +16,14 @@ function routes(): array
             'title' => 'Reuniones',
             'file' => 'pages/reuniones.php',
         ],
+        'actas' => [
+            'title' => 'Actas',
+            'file' => 'pages/actas.php',
+        ],
+        'analisis' => [
+            'title' => 'Analisis Sociodemografico',
+            'file' => 'pages/analisis.php',
+        ],
         'asistencias' => [
             'title' => 'Asistencias',
             'file' => 'pages/asistencias.php',

@@ -120,49 +120,4 @@ if (!is_string($personasDistValuesJson)) {
     </div>
 </div>
 
-<div class="row g-3">
-    <div class="col-lg-7">
-        <div class="card-clean p-4 h-100">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h2 class="h5 mb-0">Asistencias por reunion</h2>
-                <small class="text-muted">Ultimas 6 reuniones</small>
-            </div>
-            <div class="chart-wrap">
-                <canvas
-                    id="chartAsistenciasReunion"
-                    class="chart-canvas"
-                    data-labels='<?= e($attendanceLabelsJson); ?>'
-                    data-values='<?= e($attendanceValuesJson); ?>'
-                ></canvas>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-5">
-        <div class="card-clean p-4 h-100">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <h2 class="h5 mb-0">Distribucion de personas</h2>
-                <small class="text-muted">Testigos vs no testigos</small>
-            </div>
-            <div class="chart-wrap chart-wrap-donut">
-                <canvas
-                    id="chartPersonasDistribucion"
-                    class="chart-canvas"
-                    data-labels='<?= e($personasDistLabelsJson); ?>'
-                    data-values='<?= e($personasDistValuesJson); ?>'
-                ></canvas>
-            </div>
-            <div class="chart-legend mt-3">
-                <span class="legend-item">
-                    <span class="legend-color legend-color-testigo"></span>
-                    Testigos: <strong><?= e((string) $testigosCount); ?></strong>
-                </span>
-                <span class="legend-item">
-                    <span class="legend-color legend-color-no-testigo"></span>
-                    No testigos: <strong><?= e((string) $noTestigosCount); ?></strong>
-                </span>
-            </div>
-        </div>
-    </div>
-</div>
 

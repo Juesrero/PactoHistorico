@@ -7,11 +7,15 @@ class PersonaService
 
     /** @var array<string, string> */
     private array $sortableColumns = [
-        'id' => 'id',
-        'nombres_apellidos' => 'nombres_apellidos',
-        'numero_documento' => 'numero_documento',
-        'celular' => 'celular',
-        'es_testigo' => 'es_testigo',
+        'id' => 'p.id',
+        'nombres' => 'p.nombres',
+        'apellidos' => 'p.apellidos',
+        'numero_documento' => 'p.numero_documento',
+        'celular' => 'p.celular',
+        'correo' => 'p.correo',
+        'es_testigo' => 'p.es_testigo',
+        'es_jurado' => 'p.es_jurado',
+        'tipo_poblacion' => 'tp.nombre',
     ];
 
     public function __construct(PDO $pdo)
@@ -26,62 +30,95 @@ class PersonaService
 
     public function count(string $search = ''): int
     {
-        if ($search === '') {
-            return (int) $this->pdo->query('SELECT COUNT(*) FROM personas')->fetchColumn();
+        $sql = 'SELECT COUNT(*)
+                FROM personas p
+                LEFT JOIN tipos_poblacion tp ON tp.id = p.tipo_poblacion_id';
+
+        $params = [];
+        if ($search !== '') {
+            $sql .= '
+                WHERE p.nombres_apellidos LIKE :search_full_name
+                   OR p.nombres LIKE :search_name
+                   OR p.apellidos LIKE :search_last_name
+                   OR p.numero_documento LIKE :search_document
+                   OR p.celular LIKE :search_phone
+                   OR p.correo LIKE :search_email
+                   OR COALESCE(tp.nombre, \'\') LIKE :search_population';
+
+            $like = '%' . $search . '%';
+            $params = [
+                'search_full_name' => $like,
+                'search_name' => $like,
+                'search_last_name' => $like,
+                'search_document' => $like,
+                'search_phone' => $like,
+                'search_email' => $like,
+                'search_population' => $like,
+            ];
         }
 
-        $sql = 'SELECT COUNT(*)
-                FROM personas
-                WHERE nombres_apellidos LIKE :search_name
-                   OR numero_documento LIKE :search_document
-                   OR celular LIKE :search_phone';
-
         $stmt = $this->pdo->prepare($sql);
-        $like = '%' . $search . '%';
-        $stmt->execute([
-            'search_name' => $like,
-            'search_document' => $like,
-            'search_phone' => $like,
-        ]);
+        $stmt->execute($params);
 
         return (int) $stmt->fetchColumn();
     }
 
     public function listPaginated(string $search, string $sortBy, string $sortDir, int $limit, int $offset): array
     {
-        $orderColumn = $this->sortableColumns[$sortBy] ?? 'id';
+        $orderColumn = $this->sortableColumns[$sortBy] ?? 'p.id';
         $orderDir = strtolower($sortDir) === 'asc' ? 'ASC' : 'DESC';
 
         $limit = max(1, $limit);
         $offset = max(0, $offset);
 
-        if ($search === '') {
-            $sql = 'SELECT id, nombres_apellidos, numero_documento, celular, es_testigo, created_at
-                    FROM personas
-                    ORDER BY ' . $orderColumn . ' ' . $orderDir . '
-                    LIMIT :limit OFFSET :offset';
+        $sql = 'SELECT p.id,
+                       p.nombres_apellidos,
+                       p.nombres,
+                       p.apellidos,
+                       p.numero_documento,
+                       p.genero,
+                       p.fecha_nacimiento,
+                       p.correo,
+                       p.celular,
+                       p.direccion,
+                       p.tipo_poblacion_id,
+                       tp.nombre AS tipo_poblacion_nombre,
+                       tp.activo AS tipo_poblacion_activo,
+                       p.es_testigo,
+                       p.es_jurado,
+                       p.created_at
+                FROM personas p
+                LEFT JOIN tipos_poblacion tp ON tp.id = p.tipo_poblacion_id';
 
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
-            $stmt->execute();
+        $params = [];
+        if ($search !== '') {
+            $sql .= '
+                WHERE p.nombres_apellidos LIKE :search_full_name
+                   OR p.nombres LIKE :search_name
+                   OR p.apellidos LIKE :search_last_name
+                   OR p.numero_documento LIKE :search_document
+                   OR p.celular LIKE :search_phone
+                   OR p.correo LIKE :search_email
+                   OR COALESCE(tp.nombre, \'\') LIKE :search_population';
 
-            return $stmt->fetchAll();
+            $like = '%' . $search . '%';
+            $params = [
+                'search_full_name' => $like,
+                'search_name' => $like,
+                'search_last_name' => $like,
+                'search_document' => $like,
+                'search_phone' => $like,
+                'search_email' => $like,
+                'search_population' => $like,
+            ];
         }
 
-        $sql = 'SELECT id, nombres_apellidos, numero_documento, celular, es_testigo, created_at
-                FROM personas
-                WHERE nombres_apellidos LIKE :search_name
-                   OR numero_documento LIKE :search_document
-                   OR celular LIKE :search_phone
-                ORDER BY ' . $orderColumn . ' ' . $orderDir . '
-                LIMIT :limit OFFSET :offset';
+        $sql .= "\n                ORDER BY {$orderColumn} {$orderDir}\n                LIMIT :limit OFFSET :offset";
 
         $stmt = $this->pdo->prepare($sql);
-        $like = '%' . $search . '%';
-        $stmt->bindValue(':search_name', $like, PDO::PARAM_STR);
-        $stmt->bindValue(':search_document', $like, PDO::PARAM_STR);
-        $stmt->bindValue(':search_phone', $like, PDO::PARAM_STR);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(':' . $key, $value, PDO::PARAM_STR);
+        }
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
@@ -91,7 +128,25 @@ class PersonaService
 
     public function findById(int $id): ?array
     {
-        $stmt = $this->pdo->prepare('SELECT id, nombres_apellidos, numero_documento, celular, es_testigo FROM personas WHERE id = :id LIMIT 1');
+        $stmt = $this->pdo->prepare('SELECT p.id,
+                                            p.nombres_apellidos,
+                                            p.nombres,
+                                            p.apellidos,
+                                            p.numero_documento,
+                                            p.genero,
+                                            p.fecha_nacimiento,
+                                            p.correo,
+                                            p.celular,
+                                            p.direccion,
+                                            p.tipo_poblacion_id,
+                                            tp.nombre AS tipo_poblacion_nombre,
+                                            tp.activo AS tipo_poblacion_activo,
+                                            p.es_testigo,
+                                            p.es_jurado
+                                     FROM personas p
+                                     LEFT JOIN tipos_poblacion tp ON tp.id = p.tipo_poblacion_id
+                                     WHERE p.id = :id
+                                     LIMIT 1');
         $stmt->execute(['id' => $id]);
         $persona = $stmt->fetch();
 
@@ -116,11 +171,40 @@ class PersonaService
 
     public function create(array $data): void
     {
-        $sql = 'INSERT INTO personas (nombres_apellidos, numero_documento, celular, es_testigo, created_at, updated_at)
-                VALUES (:nombres_apellidos, :numero_documento, :celular, :es_testigo, NOW(), NOW())';
+        $sql = 'INSERT INTO personas (
+                    nombres_apellidos,
+                    nombres,
+                    apellidos,
+                    numero_documento,
+                    genero,
+                    fecha_nacimiento,
+                    correo,
+                    celular,
+                    direccion,
+                    tipo_poblacion_id,
+                    es_testigo,
+                    es_jurado,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    :nombres_apellidos,
+                    :nombres,
+                    :apellidos,
+                    :numero_documento,
+                    :genero,
+                    :fecha_nacimiento,
+                    :correo,
+                    :celular,
+                    :direccion,
+                    :tipo_poblacion_id,
+                    :es_testigo,
+                    :es_jurado,
+                    NOW(),
+                    NOW()
+                )';
 
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($data);
+        $stmt->execute($this->persistableData($data));
     }
 
     /**
@@ -160,7 +244,7 @@ class PersonaService
     }
 
     /**
-     * @param list<array{nombres_apellidos:string, numero_documento:string, celular:string, es_testigo:int}> $rows
+     * @param list<array<string, mixed>> $rows
      */
     public function createMany(array $rows): int
     {
@@ -168,19 +252,43 @@ class PersonaService
             return 0;
         }
 
-        $sql = 'INSERT INTO personas (nombres_apellidos, numero_documento, celular, es_testigo, created_at, updated_at)
-                VALUES (:nombres_apellidos, :numero_documento, :celular, :es_testigo, NOW(), NOW())';
+        $sql = 'INSERT INTO personas (
+                    nombres_apellidos,
+                    nombres,
+                    apellidos,
+                    numero_documento,
+                    genero,
+                    fecha_nacimiento,
+                    correo,
+                    celular,
+                    direccion,
+                    tipo_poblacion_id,
+                    es_testigo,
+                    es_jurado,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    :nombres_apellidos,
+                    :nombres,
+                    :apellidos,
+                    :numero_documento,
+                    :genero,
+                    :fecha_nacimiento,
+                    :correo,
+                    :celular,
+                    :direccion,
+                    :tipo_poblacion_id,
+                    :es_testigo,
+                    :es_jurado,
+                    NOW(),
+                    NOW()
+                )';
         $stmt = $this->pdo->prepare($sql);
 
         $this->pdo->beginTransaction();
         try {
             foreach ($rows as $row) {
-                $stmt->execute([
-                    'nombres_apellidos' => $row['nombres_apellidos'],
-                    'numero_documento' => $row['numero_documento'],
-                    'celular' => $row['celular'],
-                    'es_testigo' => $row['es_testigo'],
-                ]);
+                $stmt->execute($this->persistableData($row));
             }
 
             $this->pdo->commit();
@@ -195,20 +303,24 @@ class PersonaService
     {
         $sql = 'UPDATE personas
                 SET nombres_apellidos = :nombres_apellidos,
+                    nombres = :nombres,
+                    apellidos = :apellidos,
                     numero_documento = :numero_documento,
+                    genero = :genero,
+                    fecha_nacimiento = :fecha_nacimiento,
+                    correo = :correo,
                     celular = :celular,
+                    direccion = :direccion,
+                    tipo_poblacion_id = :tipo_poblacion_id,
                     es_testigo = :es_testigo,
+                    es_jurado = :es_jurado,
                     updated_at = NOW()
                 WHERE id = :id';
 
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([
-            'id' => $id,
-            'nombres_apellidos' => $data['nombres_apellidos'],
-            'numero_documento' => $data['numero_documento'],
-            'celular' => $data['celular'],
-            'es_testigo' => $data['es_testigo'],
-        ]);
+        $payload = $this->persistableData($data);
+        $payload['id'] = $id;
+        $stmt->execute($payload);
 
         return $stmt->rowCount() > 0;
     }
@@ -219,5 +331,33 @@ class PersonaService
         $stmt->execute(['id' => $id]);
 
         return $stmt->rowCount() > 0;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function persistableData(array $data): array
+    {
+        return [
+            'nombres_apellidos' => (string) ($data['nombres_apellidos'] ?? ''),
+            'nombres' => $this->nullableString($data['nombres'] ?? null),
+            'apellidos' => $this->nullableString($data['apellidos'] ?? null),
+            'numero_documento' => (string) ($data['numero_documento'] ?? ''),
+            'genero' => $this->nullableString($data['genero'] ?? null),
+            'fecha_nacimiento' => $this->nullableString($data['fecha_nacimiento'] ?? null),
+            'correo' => $this->nullableString($data['correo'] ?? null),
+            'celular' => (string) ($data['celular'] ?? ''),
+            'direccion' => $this->nullableString($data['direccion'] ?? null),
+            'tipo_poblacion_id' => isset($data['tipo_poblacion_id']) && (int) $data['tipo_poblacion_id'] > 0 ? (int) $data['tipo_poblacion_id'] : null,
+            'es_testigo' => !empty($data['es_testigo']) ? 1 : 0,
+            'es_jurado' => !empty($data['es_jurado']) ? 1 : 0,
+        ];
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+        return $value === '' ? null : $value;
     }
 }

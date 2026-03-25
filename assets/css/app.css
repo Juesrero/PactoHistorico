@@ -1,4 +1,4 @@
-﻿:root {
+:root {
     --bg: #f3f6fa;
     --surface: #ffffff;
     --text: #1f2937;
@@ -25,9 +25,16 @@ body.app-body {
     object-fit: contain;
 }
 
+.footer-logo {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+}
+
 .brand-title {
-    font-weight: 600;
+    font-weight: 800;
     color: var(--primary);
+    margin-left: 0.35rem;
     letter-spacing: 0.15px;
 }
 
@@ -94,28 +101,14 @@ body.app-body {
     backdrop-filter: blur(2px);
 }
 
-@media (max-width: 768px) {
-    .brand-title {
-        font-size: 0.98rem;
-    }
-
-    .summary-value {
-        font-size: 1.5rem;
-    }
-
-    .actions-col {
-        min-width: 150px;
-    }
-
-    .text-truncate-table {
-        max-width: 170px;
-    }
+.app-alert {
+    border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
 }
 
 #agregar-asistencia {
     scroll-margin-top: 88px;
 }
-
 
 .chart-wrap {
     position: relative;
@@ -161,7 +154,6 @@ body.app-body {
     background: #94a3b8;
 }
 
-
 .sort-header {
     display: inline-flex;
     align-items: center;
@@ -193,4 +185,152 @@ body.app-body {
 
 .btn i {
     font-size: 0.92em;
+}
+
+.attendance-detail-card {
+    border-color: #dbe4ef;
+}
+
+.attendance-panel {
+    border: 1px solid #d9e3ef;
+    border-radius: 16px;
+    padding: 1rem;
+    background: linear-gradient(180deg, #f9fbfe 0%, #f2f6fb 100%);
+}
+
+.attendance-panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 0.9rem;
+}
+
+.attendance-panel-subtitle {
+    color: var(--muted);
+    font-size: 0.92rem;
+}
+
+.attendance-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.attendance-stat-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    border: 1px solid #d7e2ee;
+    background: #ffffff;
+    color: #37516b;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.attendance-search-meta {
+    font-size: 0.88rem;
+    color: #4b5563;
+}
+
+.attendance-empty-state {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.75rem 0.85rem;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1px dashed #c8d4e2;
+    color: #5b6775;
+    font-size: 0.92rem;
+}
+
+.empty-state-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 1rem 1.1rem;
+    border-radius: 14px;
+    border: 1px dashed #c8d4e2;
+    background: #fbfcfe;
+    color: #556170;
+}
+
+.empty-state-card i {
+    color: var(--primary);
+}
+
+.attendance-select {
+    background-color: #ffffff;
+}
+
+.attendance-table tbody tr:hover {
+    background: #f8fbff;
+}
+
+.role-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.22rem 0.58rem;
+    border-radius: 999px;
+    font-size: 0.77rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+}
+
+.role-pill-testigo {
+    background: #e8f7ef;
+    color: #146c43;
+    border-color: #c6ebd6;
+}
+
+.role-pill-jurado {
+    background: #fff4d7;
+    color: #946200;
+    border-color: #ffe19a;
+}
+
+.role-pill-neutral {
+    background: #eef2f7;
+    color: #64748b;
+    border-color: #dde5ef;
+}
+
+.acta-detail-card {
+    border-color: #d8e1eb;
+}
+
+.acta-attachment-panel {
+    border: 1px solid #d9e3ef;
+    border-radius: 16px;
+    padding: 1rem;
+    background: linear-gradient(180deg, #fbfcfe 0%, #f1f5fa 100%);
+}
+
+.analysis-table td,
+.analysis-table th {
+    vertical-align: middle;
+}
+
+@media (max-width: 768px) {
+    .brand-title {
+        font-size: 0.98rem;
+    }
+
+    .summary-value {
+        font-size: 1.5rem;
+    }
+
+    .actions-col {
+        min-width: 150px;
+    }
+
+    .text-truncate-table {
+        max-width: 170px;
+    }
+
+    .attendance-panel-head {
+        flex-direction: column;
+    }
 }

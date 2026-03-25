@@ -36,7 +36,6 @@ header('Content-Type: application/vnd.ms-excel; charset=UTF-8');
 header('Content-Disposition: attachment; filename="' . $filename . '"');
 header('Cache-Control: max-age=0');
 
-// UTF-8 BOM para compatibilidad con Excel y caracteres especiales.
 echo "\xEF\xBB\xBF";
 ?>
 <!doctype html>
@@ -66,6 +65,7 @@ echo "\xEF\xBB\xBF";
     <table class="meta">
         <tr><td class="label">Nombre de la reunion</td><td><?= e((string) $meeting['nombre_reunion']); ?></td></tr>
         <tr><td class="label">Objetivo</td><td><?= e((string) $meeting['objetivo']); ?></td></tr>
+        <tr><td class="label">Tipo de reunion</td><td><?= e((string) ($meeting['tipo_reunion'] ?? '')); ?></td></tr>
         <tr><td class="label">Organizacion</td><td><?= e((string) $meeting['organizacion']); ?></td></tr>
         <tr><td class="label">Lugar reunion</td><td><?= e((string) $meeting['lugar_reunion']); ?></td></tr>
         <tr><td class="label">Fecha</td><td><?= e((string) $meeting['fecha']); ?></td></tr>
@@ -91,7 +91,7 @@ echo "\xEF\xBB\xBF";
             <?php else: ?>
                 <?php foreach ($attendees as $attendee): ?>
                     <tr>
-                        <td><?= e((string) $attendee['nombres_apellidos']); ?></td>
+                        <td><?= e((string) $attendee['nombre_persona']); ?></td>
                         <td><?= e((string) $attendee['numero_documento']); ?></td>
                         <td><?= e((string) $attendee['celular']); ?></td>
                         <td><?= (int) $attendee['es_testigo'] === 1 ? 'Si' : 'No'; ?></td>

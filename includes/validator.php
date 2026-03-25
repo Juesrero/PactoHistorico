@@ -7,34 +7,91 @@ class Validator
     {
         $errors = [];
 
-        $nombres = trim((string) ($input['nombres_apellidos'] ?? ''));
-        $documento = trim((string) ($input['numero_documento'] ?? ''));
-        $celular = trim((string) ($input['celular'] ?? ''));
-        $esTestigo = isset($input['es_testigo']) ? 1 : 0;
-
-        if ($nombres === '') {
-            $errors['nombres_apellidos'] = 'Nombres y apellidos son obligatorios.';
-        } elseif (mb_strlen($nombres) < 3 || mb_strlen($nombres) > 120) {
-            $errors['nombres_apellidos'] = 'Debe tener entre 3 y 120 caracteres.';
-        }
+        $nombres = trim((string) ($input['nombres'] ?? ''));
+        $apellidos = trim((string) ($input['apellidos'] ?? ''));
+        $documento = strtoupper(trim((string) ($input['numero_documento'] ?? ($input['identificacion'] ?? ''))));
+        $genero = trim((string) ($input['genero'] ?? ''));
+        $fechaNacimiento = trim((string) ($input['fecha_nacimiento'] ?? ''));
+        $correo = trim((string) ($input['correo'] ?? ''));
+        $celular = trim((string) ($input['celular'] ?? ($input['telefono'] ?? '')));
+        $direccion = trim((string) ($input['direccion'] ?? ''));
+        $tipoPoblacionId = isset($input['tipo_poblacion_id']) && (string) $input['tipo_poblacion_id'] !== ''
+            ? (int) $input['tipo_poblacion_id']
+            : null;
+        $esTestigo = self::inputToBool($input['es_testigo'] ?? 0) ? 1 : 0;
+        $esJurado = self::inputToBool($input['es_jurado'] ?? 0) ? 1 : 0;
 
         if ($documento === '') {
-            $errors['numero_documento'] = 'El numero de documento es obligatorio.';
-        } elseif (!preg_match('/^[0-9]{5,20}$/', $documento)) {
-            $errors['numero_documento'] = 'Use solo numeros (5 a 20 digitos).';
+            $errors['numero_documento'] = 'La identificacion es obligatoria.';
+        } elseif (!preg_match('/^[A-Z0-9\-]{5,20}$/', $documento)) {
+            $errors['numero_documento'] = 'Use entre 5 y 20 caracteres (letras, numeros o guion).';
+        }
+
+        if ($nombres === '') {
+            $errors['nombres'] = 'Los nombres son obligatorios.';
+        } elseif (mb_strlen($nombres) < 2 || mb_strlen($nombres) > 60) {
+            $errors['nombres'] = 'Los nombres deben tener entre 2 y 60 caracteres.';
+        }
+
+        if ($apellidos === '') {
+            $errors['apellidos'] = 'Los apellidos son obligatorios.';
+        } elseif (mb_strlen($apellidos) < 2 || mb_strlen($apellidos) > 60) {
+            $errors['apellidos'] = 'Los apellidos deben tener entre 2 y 60 caracteres.';
+        }
+
+        $nombresApellidos = trim($nombres . ' ' . $apellidos);
+        if ($nombresApellidos !== '' && mb_strlen($nombresApellidos) > 120) {
+            $errors['nombres'] = 'El nombre completo no puede superar 120 caracteres.';
+        }
+
+        $allowedGeneros = ['', 'Femenino', 'Masculino', 'No binario', 'Otro', 'Prefiero no decir'];
+        if (!in_array($genero, $allowedGeneros, true)) {
+            $errors['genero'] = 'Seleccione un genero valido.';
+        }
+
+        if ($fechaNacimiento !== '') {
+            if (!self::isValidDate($fechaNacimiento)) {
+                $errors['fecha_nacimiento'] = 'La fecha de nacimiento es invalida.';
+            } elseif ($fechaNacimiento > date('Y-m-d')) {
+                $errors['fecha_nacimiento'] = 'La fecha de nacimiento no puede estar en el futuro.';
+            }
+        }
+
+        if ($correo !== '') {
+            if (mb_strlen($correo) > 120) {
+                $errors['correo'] = 'El correo no puede superar 120 caracteres.';
+            } elseif (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+                $errors['correo'] = 'Ingrese un correo electronico valido.';
+            }
         }
 
         if ($celular === '') {
-            $errors['celular'] = 'El celular es obligatorio.';
-        } elseif (!preg_match('/^[0-9]{7,20}$/', $celular)) {
-            $errors['celular'] = 'Use solo numeros (7 a 20 digitos).';
+            $errors['celular'] = 'El telefono es obligatorio.';
+        } elseif (!preg_match('/^[0-9+\-\s]{7,20}$/', $celular)) {
+            $errors['celular'] = 'Use entre 7 y 20 caracteres (numeros, espacios, + o guion).';
+        }
+
+        if ($direccion !== '' && mb_strlen($direccion) > 255) {
+            $errors['direccion'] = 'La direccion no puede superar 255 caracteres.';
+        }
+
+        if ($tipoPoblacionId !== null && $tipoPoblacionId <= 0) {
+            $errors['tipo_poblacion_id'] = 'Seleccione un tipo de poblacion valido.';
         }
 
         return [[
-            'nombres_apellidos' => $nombres,
+            'nombres_apellidos' => $nombresApellidos,
+            'nombres' => $nombres,
+            'apellidos' => $apellidos,
             'numero_documento' => $documento,
+            'genero' => $genero !== '' ? $genero : null,
+            'fecha_nacimiento' => $fechaNacimiento !== '' ? $fechaNacimiento : null,
+            'correo' => $correo !== '' ? $correo : null,
             'celular' => $celular,
+            'direccion' => $direccion !== '' ? $direccion : null,
+            'tipo_poblacion_id' => $tipoPoblacionId,
             'es_testigo' => $esTestigo,
+            'es_jurado' => $esJurado,
         ], $errors];
     }
 
@@ -44,6 +101,7 @@ class Validator
 
         $nombre = trim((string) ($input['nombre_reunion'] ?? ''));
         $objetivo = trim((string) ($input['objetivo'] ?? ''));
+        $tipo = trim((string) ($input['tipo_reunion'] ?? ''));
         $organizacion = trim((string) ($input['organizacion'] ?? ''));
         $lugar = trim((string) ($input['lugar_reunion'] ?? ''));
         $fecha = trim((string) ($input['fecha'] ?? ''));
@@ -57,11 +115,17 @@ class Validator
 
         if ($objetivo === '') {
             $errors['objetivo'] = 'El objetivo es obligatorio.';
+        } elseif (mb_strlen($objetivo) > 2000) {
+            $errors['objetivo'] = 'El objetivo no puede superar 2000 caracteres.';
         }
 
-        if ($organizacion === '') {
-            $errors['organizacion'] = 'La organizacion es obligatoria.';
-        } elseif (mb_strlen($organizacion) > 120) {
+        if ($tipo === '') {
+            $errors['tipo_reunion'] = 'El tipo de reunion es obligatorio.';
+        } elseif (mb_strlen($tipo) < 3 || mb_strlen($tipo) > 80) {
+            $errors['tipo_reunion'] = 'El tipo de reunion debe tener entre 3 y 80 caracteres.';
+        }
+
+        if ($organizacion !== '' && mb_strlen($organizacion) > 120) {
             $errors['organizacion'] = 'Maximo 120 caracteres.';
         }
 
@@ -82,10 +146,44 @@ class Validator
         return [[
             'nombre_reunion' => $nombre,
             'objetivo' => $objetivo,
-            'organizacion' => $organizacion,
+            'tipo_reunion' => $tipo,
+            'organizacion' => $organizacion !== '' ? $organizacion : $tipo,
             'lugar_reunion' => $lugar,
             'fecha' => $fecha,
             'hora' => $hora,
+        ], $errors];
+    }
+
+    public static function validateActa(array $input): array
+    {
+        $errors = [];
+
+        $nombreObjetivo = trim((string) ($input['nombre_o_objetivo'] ?? ''));
+        $responsable = trim((string) ($input['responsable'] ?? ''));
+        $lugar = trim((string) ($input['lugar'] ?? ''));
+
+        if ($nombreObjetivo === '') {
+            $errors['nombre_o_objetivo'] = 'El nombre u objetivo del acta es obligatorio.';
+        } elseif (mb_strlen($nombreObjetivo) < 3 || mb_strlen($nombreObjetivo) > 200) {
+            $errors['nombre_o_objetivo'] = 'Use entre 3 y 200 caracteres.';
+        }
+
+        if ($responsable === '') {
+            $errors['responsable'] = 'El responsable es obligatorio.';
+        } elseif (mb_strlen($responsable) < 3 || mb_strlen($responsable) > 150) {
+            $errors['responsable'] = 'Use entre 3 y 150 caracteres.';
+        }
+
+        if ($lugar === '') {
+            $errors['lugar'] = 'El lugar es obligatorio.';
+        } elseif (mb_strlen($lugar) < 3 || mb_strlen($lugar) > 150) {
+            $errors['lugar'] = 'Use entre 3 y 150 caracteres.';
+        }
+
+        return [[
+            'nombre_o_objetivo' => $nombreObjetivo,
+            'responsable' => $responsable,
+            'lugar' => $lugar,
         ], $errors];
     }
 
@@ -126,5 +224,15 @@ class Validator
 
         $parsed = DateTime::createFromFormat('Y-m-d', $date);
         return $parsed instanceof DateTime && $parsed->format('Y-m-d') === $date;
+    }
+
+    private static function inputToBool(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        $value = strtolower(trim((string) $value));
+        return in_array($value, ['1', 'true', 'on', 'yes', 'si'], true);
     }
 }

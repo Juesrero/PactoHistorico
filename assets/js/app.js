@@ -7,6 +7,10 @@
             if (!form.checkValidity()) {
                 event.preventDefault();
                 event.stopPropagation();
+                const firstInvalid = form.querySelector(':invalid');
+                if (firstInvalid && typeof firstInvalid.focus === 'function') {
+                    firstInvalid.focus();
+                }
             }
             form.classList.add('was-validated');
         }, false);
@@ -69,11 +73,11 @@
         ctx.fillText(text, width / 2, height / 2);
     };
 
-    const drawBarChart = (canvas, labels, values) => {
+    const drawBarChart = (canvas, labels, values, emptyText = 'Sin datos disponibles.') => {
         const { ctx, width, height } = setupCanvas(canvas);
 
         if (labels.length === 0 || values.length === 0) {
-            drawEmptyState(ctx, width, height, 'Sin datos de asistencias.');
+            drawEmptyState(ctx, width, height, emptyText);
             return;
         }
 
@@ -139,13 +143,13 @@
         ctx.stroke();
     };
 
-    const drawDonutChart = (canvas, labels, values) => {
+    const drawDonutChart = (canvas, labels, values, emptyText = 'Sin datos disponibles.') => {
         const { ctx, width, height } = setupCanvas(canvas);
         const numericValues = values.map((item) => Math.max(0, Number(item || 0)));
         const total = numericValues.reduce((acc, current) => acc + current, 0);
 
         if (labels.length === 0 || numericValues.length === 0 || total === 0) {
-            drawEmptyState(ctx, width, height, 'Sin datos de personas.');
+            drawEmptyState(ctx, width, height, emptyText);
             return;
         }
 
@@ -192,26 +196,45 @@
         ctx.fillText('personas', centerX, centerY + 14);
     };
 
-    const initDashboardCharts = () => {
-        const barCanvas = document.getElementById('chartAsistenciasReunion');
-        const donutCanvas = document.getElementById('chartPersonasDistribucion');
+    const initCharts = () => {
+        const canvases = Array.from(document.querySelectorAll('.chart-canvas')).filter((canvas) => {
+            if (canvas.dataset.chartType) {
+                return true;
+            }
 
-        if (!barCanvas && !donutCanvas) {
+            return ['chartAsistenciasReunion', 'chartPersonasDistribucion'].includes(canvas.id);
+        });
+
+        if (canvases.length === 0) {
             return;
         }
 
-        const drawAll = () => {
-            if (barCanvas) {
-                const labels = parseJsonDataset(barCanvas.dataset.labels);
-                const values = parseJsonDataset(barCanvas.dataset.values);
-                drawBarChart(barCanvas, labels, values);
+        const resolveChartType = (canvas) => {
+            if (canvas.dataset.chartType) {
+                return canvas.dataset.chartType;
             }
 
-            if (donutCanvas) {
-                const labels = parseJsonDataset(donutCanvas.dataset.labels);
-                const values = parseJsonDataset(donutCanvas.dataset.values);
-                drawDonutChart(donutCanvas, labels, values);
+            if (canvas.id === 'chartPersonasDistribucion') {
+                return 'donut';
             }
+
+            return 'bar';
+        };
+
+        const drawAll = () => {
+            canvases.forEach((canvas) => {
+                const labels = parseJsonDataset(canvas.dataset.labels);
+                const values = parseJsonDataset(canvas.dataset.values);
+                const emptyText = canvas.dataset.emptyText || 'Sin datos disponibles.';
+                const chartType = resolveChartType(canvas);
+
+                if (chartType === 'donut') {
+                    drawDonutChart(canvas, labels, values, emptyText);
+                    return;
+                }
+
+                drawBarChart(canvas, labels, values, emptyText);
+            });
         };
 
         drawAll();
@@ -223,5 +246,5 @@
         });
     };
 
-    initDashboardCharts();
+    initCharts();
 })();

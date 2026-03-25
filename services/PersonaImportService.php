@@ -5,14 +5,22 @@ class PersonaImportService
 {
     private const MAX_FILE_SIZE = 5242880; // 5MB
     private const MAX_ROWS = 5000;
+    private const ALLOWED_MIME_TYPES = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/zip',
+        'application/x-zip-compressed',
+        'application/octet-stream',
+    ];
 
     private PersonaService $personaService;
     private XlsxReader $xlsxReader;
+    private ?TipoPoblacionService $tipoPoblacionService;
 
-    public function __construct(PersonaService $personaService, ?XlsxReader $xlsxReader = null)
+    public function __construct(PersonaService $personaService, ?XlsxReader $xlsxReader = null, ?TipoPoblacionService $tipoPoblacionService = null)
     {
         $this->personaService = $personaService;
         $this->xlsxReader = $xlsxReader ?? new XlsxReader();
+        $this->tipoPoblacionService = $tipoPoblacionService;
     }
 
     /**
@@ -27,7 +35,7 @@ class PersonaImportService
         }
 
         $tmpPath = (string) ($uploadedFile['tmp_name'] ?? '');
-        if ($tmpPath === '' || !is_file($tmpPath)) {
+        if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
             throw new RuntimeException('No se encontro el archivo temporal para importar.');
         }
 
@@ -46,19 +54,23 @@ class PersonaImportService
             throw new RuntimeException('El archivo supera el maximo permitido de 5 MB.');
         }
 
+        $mime = strtolower((string) (new finfo(FILEINFO_MIME_TYPE))->file($tmpPath));
+        if (!in_array($mime, self::ALLOWED_MIME_TYPES, true)) {
+            throw new RuntimeException('El archivo cargado no corresponde a un Excel .xlsx valido.');
+        }
+
         $rows = $this->xlsxReader->readRows($tmpPath);
         if ($rows === []) {
             throw new RuntimeException('El archivo Excel no contiene filas para importar.');
         }
 
-        $required = ['nombres_apellidos', 'numero_documento', 'celular'];
         $headerIndex = null;
         $headerMap = [];
 
         $maxHeaderScan = min(7, count($rows));
         for ($i = 0; $i < $maxHeaderScan; $i++) {
             $candidateMap = $this->resolveHeaderMap($rows[$i]['cells']);
-            if ($this->hasRequiredColumns($candidateMap, $required)) {
+            if ($this->hasRequiredColumns($candidateMap)) {
                 $headerIndex = $i;
                 $headerMap = $candidateMap;
                 break;
@@ -93,8 +105,10 @@ class PersonaImportService
 
             $processed++;
 
-            $esTestigoParse = $this->parseEsTestigo($input['es_testigo']);
-            if ($esTestigoParse === null) {
+            [$nombres, $apellidos] = $this->resolveNames($input['nombres'], $input['apellidos'], $input['nombres_apellidos']);
+
+            $esTestigo = $this->parseBooleanFlag($input['es_testigo']);
+            if ($esTestigo === null) {
                 $errors[] = [
                     'row' => (int) $row['row_number'],
                     'message' => 'Valor de es_testigo invalido. Use 1/0, si/no o verdadero/falso.',
@@ -102,14 +116,41 @@ class PersonaImportService
                 continue;
             }
 
-            $validationInput = [
-                'nombres_apellidos' => $input['nombres_apellidos'],
-                'numero_documento' => $input['numero_documento'],
-                'celular' => $input['celular'],
-            ];
-            if ($esTestigoParse === 1) {
-                $validationInput['es_testigo'] = '1';
+            $esJurado = $this->parseBooleanFlag($input['es_jurado']);
+            if ($esJurado === null) {
+                $errors[] = [
+                    'row' => (int) $row['row_number'],
+                    'message' => 'Valor de es_jurado invalido. Use 1/0, si/no o verdadero/falso.',
+                ];
+                continue;
             }
+
+            $tipoPoblacionId = null;
+            if ($input['tipo_poblacion'] !== '') {
+                $tipoPoblacion = $this->resolveTipoPoblacion($input['tipo_poblacion']);
+                if ($tipoPoblacion === null) {
+                    $errors[] = [
+                        'row' => (int) $row['row_number'],
+                        'message' => 'El tipo de poblacion indicado no existe o esta inactivo.',
+                    ];
+                    continue;
+                }
+                $tipoPoblacionId = (int) $tipoPoblacion['id'];
+            }
+
+            $validationInput = [
+                'numero_documento' => $input['numero_documento'],
+                'nombres' => $nombres,
+                'apellidos' => $apellidos,
+                'genero' => $input['genero'],
+                'fecha_nacimiento' => $input['fecha_nacimiento'],
+                'correo' => $input['correo'],
+                'celular' => $input['celular'],
+                'direccion' => $input['direccion'],
+                'tipo_poblacion_id' => $tipoPoblacionId,
+                'es_testigo' => $esTestigo === 1 ? '1' : '0',
+                'es_jurado' => $esJurado === 1 ? '1' : '0',
+            ];
 
             [$clean, $validationErrors] = Validator::validatePersona($validationInput);
             if ($validationErrors !== []) {
@@ -124,7 +165,7 @@ class PersonaImportService
             if (isset($seenDocuments[$documento])) {
                 $errors[] = [
                     'row' => (int) $row['row_number'],
-                    'message' => 'Documento duplicado dentro del archivo (ya aparece en fila ' . $seenDocuments[$documento] . ').',
+                    'message' => 'Identificacion duplicada dentro del archivo (ya aparece en fila ' . $seenDocuments[$documento] . ').',
                 ];
                 continue;
             }
@@ -144,7 +185,7 @@ class PersonaImportService
             if (isset($existing[$documento])) {
                 $errors[] = [
                     'row' => $candidate['row_number'],
-                    'message' => 'El documento ya existe en la base de datos.',
+                    'message' => 'La identificacion ya existe en la base de datos.',
                 ];
                 continue;
             }
@@ -171,17 +212,23 @@ class PersonaImportService
         $aliases = [
             'nombres_apellidos' => [
                 'nombres_apellidos',
-                'nombres_apellidos',
                 'nombres_apellido',
                 'nombre_apellidos',
                 'nombres_y_apellidos',
                 'nombre_apellido',
                 'nombre_completo',
-                'nombre',
             ],
-            'numero_documento' => ['numero_documento', 'numero_de_documento', 'documento', 'cedula', 'dni', 'doc'],
+            'nombres' => ['nombres', 'nombre', 'primer_nombre'],
+            'apellidos' => ['apellidos', 'apellido', 'primer_apellido'],
+            'numero_documento' => ['numero_documento', 'numero_de_documento', 'documento', 'identificacion', 'cedula', 'dni', 'doc'],
             'celular' => ['celular', 'telefono', 'telefono_celular', 'movil', 'cel'],
+            'genero' => ['genero', 'sexo'],
+            'fecha_nacimiento' => ['fecha_nacimiento', 'fecha_de_nacimiento', 'nacimiento'],
+            'correo' => ['correo', 'email', 'correo_electronico'],
+            'direccion' => ['direccion', 'direccion_domicilio', 'domicilio'],
+            'tipo_poblacion' => ['tipo_poblacion', 'poblacion', 'grupo_poblacional'],
             'es_testigo' => ['es_testigo', 'testigo', 'testigo_si_no', 'testigo_1_0'],
+            'es_jurado' => ['es_jurado', 'jurado', 'jurado_si_no', 'jurado_1_0'],
         ];
 
         $normalizedHeaders = [];
@@ -211,17 +258,14 @@ class PersonaImportService
 
     /**
      * @param array<string, int> $headerMap
-     * @param list<string> $required
      */
-    private function hasRequiredColumns(array $headerMap, array $required): bool
+    private function hasRequiredColumns(array $headerMap): bool
     {
-        foreach ($required as $requiredColumn) {
-            if (!isset($headerMap[$requiredColumn])) {
-                return false;
-            }
-        }
+        $hasNames = isset($headerMap['nombres_apellidos']) || (isset($headerMap['nombres']) && isset($headerMap['apellidos']));
 
-        return true;
+        return $hasNames
+            && isset($headerMap['numero_documento'])
+            && isset($headerMap['celular']);
     }
 
     /**
@@ -249,7 +293,7 @@ class PersonaImportService
     /**
      * @param array<int, string> $rowCells
      * @param array<string, int> $headerMap
-     * @return array{nombres_apellidos:string, numero_documento:string, celular:string, es_testigo:string}
+     * @return array<string, string>
      */
     private function rowToInput(array $rowCells, array $headerMap): array
     {
@@ -263,24 +307,63 @@ class PersonaImportService
 
         return [
             'nombres_apellidos' => $pick($rowCells, $headerMap['nombres_apellidos'] ?? null),
+            'nombres' => $pick($rowCells, $headerMap['nombres'] ?? null),
+            'apellidos' => $pick($rowCells, $headerMap['apellidos'] ?? null),
             'numero_documento' => $pick($rowCells, $headerMap['numero_documento'] ?? null),
             'celular' => $pick($rowCells, $headerMap['celular'] ?? null),
+            'genero' => $pick($rowCells, $headerMap['genero'] ?? null),
+            'fecha_nacimiento' => $pick($rowCells, $headerMap['fecha_nacimiento'] ?? null),
+            'correo' => $pick($rowCells, $headerMap['correo'] ?? null),
+            'direccion' => $pick($rowCells, $headerMap['direccion'] ?? null),
+            'tipo_poblacion' => $pick($rowCells, $headerMap['tipo_poblacion'] ?? null),
             'es_testigo' => $pick($rowCells, $headerMap['es_testigo'] ?? null),
+            'es_jurado' => $pick($rowCells, $headerMap['es_jurado'] ?? null),
         ];
     }
 
     /**
-     * @param array{nombres_apellidos:string, numero_documento:string, celular:string, es_testigo:string} $input
+     * @param array<string, string> $input
      */
     private function isRowEmpty(array $input): bool
     {
-        return $input['nombres_apellidos'] === ''
-            && $input['numero_documento'] === ''
-            && $input['celular'] === ''
-            && $input['es_testigo'] === '';
+        foreach ($input as $value) {
+            if ($value !== '') {
+                return false;
+            }
+        }
+
+        return true;
     }
 
-    private function parseEsTestigo(string $value): ?int
+    /**
+     * @return array{0:string,1:string}
+     */
+    private function resolveNames(string $nombres, string $apellidos, string $nombresApellidos): array
+    {
+        $nombres = trim($nombres);
+        $apellidos = trim($apellidos);
+
+        if ($nombres !== '' && $apellidos !== '') {
+            return [$nombres, $apellidos];
+        }
+
+        $nombresApellidos = trim($nombresApellidos);
+        if ($nombresApellidos === '') {
+            return [$nombres, $apellidos];
+        }
+
+        $parts = preg_split('/\s+/', $nombresApellidos) ?: [];
+        if (count($parts) <= 1) {
+            return [$nombresApellidos, $apellidos];
+        }
+
+        $lastName = (string) array_pop($parts);
+        $firstNames = trim(implode(' ', $parts));
+
+        return [$firstNames, $lastName];
+    }
+
+    private function parseBooleanFlag(string $value): ?int
     {
         $normalized = $this->normalizeText($value);
         if ($normalized === '') {
@@ -315,6 +398,15 @@ class PersonaImportService
         $value = mb_strtolower($value);
         $value = preg_replace('/[^a-z0-9]+/', '_', $value) ?? '';
         return trim($value, '_');
+    }
+
+    private function resolveTipoPoblacion(string $value): ?array
+    {
+        if ($this->tipoPoblacionService === null) {
+            return null;
+        }
+
+        return $this->tipoPoblacionService->findByName(trim($value), true);
     }
 
     private function uploadErrorMessage(int $errorCode): string
