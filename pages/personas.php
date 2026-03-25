@@ -4,6 +4,7 @@ declare(strict_types=1);
 $personaService = new PersonaService(db());
 $tipoPoblacionService = new TipoPoblacionService(db());
 $personaImportService = new PersonaImportService($personaService, null, $tipoPoblacionService);
+$personasTemplateUrl = url('downloads/personas/plantilla.php');
 
 $search = request_string($_GET, 'q', 120);
 $action = request_string($_GET, 'action', 20);
@@ -565,7 +566,12 @@ if ($formMode === 'edit' || $formErrors !== []) {
                     Opcionales: <code>genero</code>, <code>fecha_nacimiento</code>, <code>correo</code>, <code>direccion</code>, <code>tipo_poblacion</code>, <code>es_testigo</code>, <code>es_jurado</code>.
                 </p>
 
-                <button type="submit" class="btn btn-outline-primary w-100"><i class="fa-solid fa-upload me-1"></i>Importar Excel</button>
+                <div class="d-grid gap-2">
+                    <a href="<?= e($personasTemplateUrl); ?>" class="btn btn-outline-success">
+                        <i class="fa-solid fa-download me-1"></i>Descargar plantilla
+                    </a>
+                    <button type="submit" class="btn btn-outline-primary w-100"><i class="fa-solid fa-upload me-1"></i>Importar Excel</button>
+                </div>
             </form>
 
             <?php if ($importReport !== null): ?>
@@ -608,7 +614,7 @@ if ($formMode === 'edit' || $formErrors !== []) {
                             <div class="alert alert-danger"><?= e($typeFormErrors['general']); ?></div>
                         <?php endif; ?>
 
-            <form method="post" class="needs-validation" novalidate>
+            <form method="post" class="needs-validation compact-floating-form" novalidate>
                 <?= csrf_field(); ?>
                 <input type="hidden" name="form_action" value="<?= $typeFormMode === 'edit' ? 'update_tipo_poblacion' : 'create_tipo_poblacion'; ?>">
                 <input type="hidden" name="return_q" value="<?= e($search); ?>">
@@ -620,15 +626,19 @@ if ($formMode === 'edit' || $formErrors !== []) {
                 <?php endif; ?>
 
                 <div class="mb-3">
-                    <label class="form-label" for="tipo_nombre"><i class="fa-solid fa-tags me-1 text-muted"></i>Nombre</label>
-                    <input type="text" class="form-control <?= isset($typeFormErrors['nombre']) ? 'is-invalid' : ''; ?>" id="tipo_nombre" name="nombre" minlength="2" maxlength="120" required value="<?= e((string) $typeFormData['nombre']); ?>">
-                    <div class="invalid-feedback"><?= e($typeFormErrors['nombre'] ?? 'Ingrese un nombre valido.'); ?></div>
+                    <div class="form-floating">
+                        <input type="text" class="form-control <?= isset($typeFormErrors['nombre']) ? 'is-invalid' : ''; ?>" id="tipo_nombre" name="nombre" minlength="2" maxlength="120" placeholder="Nombre" required value="<?= e((string) $typeFormData['nombre']); ?>">
+                        <label for="tipo_nombre">Nombre</label>
+                        <div class="invalid-feedback"><?= e($typeFormErrors['nombre'] ?? 'Ingrese un nombre valido.'); ?></div>
+                    </div>
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label" for="tipo_descripcion"><i class="fa-solid fa-align-left me-1 text-muted"></i>Descripcion</label>
-                    <textarea class="form-control <?= isset($typeFormErrors['descripcion']) ? 'is-invalid' : ''; ?>" id="tipo_descripcion" name="descripcion" rows="2" maxlength="255"><?= e((string) $typeFormData['descripcion']); ?></textarea>
-                    <div class="invalid-feedback"><?= e($typeFormErrors['descripcion'] ?? 'Revise la descripcion.'); ?></div>
+                    <div class="form-floating">
+                        <textarea class="form-control <?= isset($typeFormErrors['descripcion']) ? 'is-invalid' : ''; ?>" id="tipo_descripcion" name="descripcion" placeholder="Descripcion" style="height: 78px;" maxlength="255"><?= e((string) $typeFormData['descripcion']); ?></textarea>
+                        <label for="tipo_descripcion">Descripcion</label>
+                        <div class="invalid-feedback"><?= e($typeFormErrors['descripcion'] ?? 'Revise la descripcion.'); ?></div>
+                    </div>
                 </div>
 
                 <div class="form-check mb-3">

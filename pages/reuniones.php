@@ -211,7 +211,7 @@ $availableCount = count($availablePersons);
                 <div class="alert alert-danger"><?= e($formErrors['general']); ?></div>
             <?php endif; ?>
 
-            <form method="post" class="needs-validation" novalidate>
+            <form method="post" class="needs-validation compact-floating-form reunion-form-compact" novalidate>
                 <?= csrf_field(); ?>
                 <input type="hidden" name="form_action" value="<?= $formMode === 'edit' ? 'update_reunion' : 'create_reunion'; ?>">
                 <?php if ($formMode === 'edit'): ?>
@@ -219,53 +219,67 @@ $availableCount = count($availablePersons);
                 <?php endif; ?>
 
                 <div class="mb-3">
-                    <label for="nombre_reunion" class="form-label">Nombre de la reunion</label>
-                    <input id="nombre_reunion" name="nombre_reunion" type="text" class="form-control <?= isset($formErrors['nombre_reunion']) ? 'is-invalid' : ''; ?>" maxlength="150" required value="<?= e((string) $formData['nombre_reunion']); ?>">
-                    <div class="invalid-feedback"><?= e($formErrors['nombre_reunion'] ?? 'Campo obligatorio.'); ?></div>
+                    <div class="form-floating">
+                        <input id="nombre_reunion" name="nombre_reunion" type="text" class="form-control <?= isset($formErrors['nombre_reunion']) ? 'is-invalid' : ''; ?>" maxlength="150" placeholder="Nombre de la reunion" required value="<?= e((string) $formData['nombre_reunion']); ?>">
+                        <label for="nombre_reunion">Nombre de la reunion</label>
+                        <div class="invalid-feedback"><?= e($formErrors['nombre_reunion'] ?? 'Campo obligatorio.'); ?></div>
+                    </div>
                 </div>
 
                 <div class="mb-3">
-                    <label for="objetivo" class="form-label">Objetivo</label>
-                    <textarea id="objetivo" name="objetivo" class="form-control <?= isset($formErrors['objetivo']) ? 'is-invalid' : ''; ?>" rows="3" maxlength="2000" required><?= e((string) $formData['objetivo']); ?></textarea>
-                    <div class="invalid-feedback"><?= e($formErrors['objetivo'] ?? 'Campo obligatorio.'); ?></div>
+                    <div class="form-floating">
+                        <textarea id="objetivo" name="objetivo" class="form-control <?= isset($formErrors['objetivo']) ? 'is-invalid' : ''; ?>" placeholder="Objetivo" style="height: 96px;" maxlength="2000" required><?= e((string) $formData['objetivo']); ?></textarea>
+                        <label for="objetivo">Objetivo</label>
+                        <div class="invalid-feedback"><?= e($formErrors['objetivo'] ?? 'Campo obligatorio.'); ?></div>
+                    </div>
                 </div>
 
                 <div class="row g-2">
                     <div class="col-md-6">
-                        <label for="tipo_reunion" class="form-label">Tipo</label>
-                        <input id="tipo_reunion" name="tipo_reunion" type="text" class="form-control <?= isset($formErrors['tipo_reunion']) ? 'is-invalid' : ''; ?>" maxlength="80" minlength="3" list="tiposReunionList" required value="<?= e((string) $formData['tipo_reunion']); ?>">
-                        <datalist id="tiposReunionList">
-                            <?php foreach ($meetingTypeSuggestions as $suggestion): ?>
-                                <option value="<?= e($suggestion); ?>"></option>
-                            <?php endforeach; ?>
-                        </datalist>
-                        <div class="invalid-feedback"><?= e($formErrors['tipo_reunion'] ?? 'Ingrese un tipo de reunion.'); ?></div>
+                        <div class="form-floating">
+                            <input id="tipo_reunion" name="tipo_reunion" type="text" class="form-control <?= isset($formErrors['tipo_reunion']) ? 'is-invalid' : ''; ?>" maxlength="80" minlength="3" list="tiposReunionList" placeholder="Tipo" required value="<?= e((string) $formData['tipo_reunion']); ?>">
+                            <label for="tipo_reunion">Tipo</label>
+                            <datalist id="tiposReunionList">
+                                <?php foreach ($meetingTypeSuggestions as $suggestion): ?>
+                                    <option value="<?= e($suggestion); ?>"></option>
+                                <?php endforeach; ?>
+                            </datalist>
+                            <div class="invalid-feedback"><?= e($formErrors['tipo_reunion'] ?? 'Ingrese un tipo de reunion.'); ?></div>
+                        </div>
                     </div>
 
                     <div class="col-md-6">
-                        <label for="organizacion" class="form-label">Organizacion o convocatoria</label>
-                        <input id="organizacion" name="organizacion" type="text" class="form-control <?= isset($formErrors['organizacion']) ? 'is-invalid' : ''; ?>" maxlength="120" value="<?= e((string) $formData['organizacion']); ?>">
+                        <div class="form-floating">
+                            <input id="organizacion" name="organizacion" type="text" class="form-control <?= isset($formErrors['organizacion']) ? 'is-invalid' : ''; ?>" maxlength="120" placeholder="Organizacion o convocatoria" value="<?= e((string) $formData['organizacion']); ?>">
+                            <label for="organizacion">Organizacion o convocatoria</label>
+                        </div>
                         <div class="form-text">Opcional. Si se deja vacio, se guardara el mismo valor del tipo.</div>
                         <div class="invalid-feedback"><?= e($formErrors['organizacion'] ?? 'Revise este campo.'); ?></div>
                     </div>
                 </div>
 
                 <div class="mb-3 mt-3">
-                    <label for="lugar_reunion" class="form-label">Lugar</label>
-                    <input id="lugar_reunion" name="lugar_reunion" type="text" class="form-control <?= isset($formErrors['lugar_reunion']) ? 'is-invalid' : ''; ?>" maxlength="150" required value="<?= e((string) $formData['lugar_reunion']); ?>">
-                    <div class="invalid-feedback"><?= e($formErrors['lugar_reunion'] ?? 'Campo obligatorio.'); ?></div>
+                    <div class="form-floating">
+                        <input id="lugar_reunion" name="lugar_reunion" type="text" class="form-control <?= isset($formErrors['lugar_reunion']) ? 'is-invalid' : ''; ?>" maxlength="150" placeholder="Lugar" required value="<?= e((string) $formData['lugar_reunion']); ?>">
+                        <label for="lugar_reunion">Lugar</label>
+                        <div class="invalid-feedback"><?= e($formErrors['lugar_reunion'] ?? 'Campo obligatorio.'); ?></div>
+                    </div>
                 </div>
 
                 <div class="row g-2">
                     <div class="col-6">
-                        <label for="fecha" class="form-label">Fecha</label>
-                        <input id="fecha" name="fecha" type="date" class="form-control <?= isset($formErrors['fecha']) ? 'is-invalid' : ''; ?>" required value="<?= e((string) $formData['fecha']); ?>">
-                        <div class="invalid-feedback"><?= e($formErrors['fecha'] ?? 'Fecha invalida.'); ?></div>
+                        <div class="form-floating">
+                            <input id="fecha" name="fecha" type="date" class="form-control <?= isset($formErrors['fecha']) ? 'is-invalid' : ''; ?>" placeholder="Fecha" required value="<?= e((string) $formData['fecha']); ?>">
+                            <label for="fecha">Fecha</label>
+                            <div class="invalid-feedback"><?= e($formErrors['fecha'] ?? 'Fecha invalida.'); ?></div>
+                        </div>
                     </div>
                     <div class="col-6">
-                        <label for="hora" class="form-label">Hora</label>
-                        <input id="hora" name="hora" type="time" class="form-control <?= isset($formErrors['hora']) ? 'is-invalid' : ''; ?>" required value="<?= e((string) $formData['hora']); ?>">
-                        <div class="invalid-feedback"><?= e($formErrors['hora'] ?? 'Hora invalida.'); ?></div>
+                        <div class="form-floating">
+                            <input id="hora" name="hora" type="time" class="form-control <?= isset($formErrors['hora']) ? 'is-invalid' : ''; ?>" placeholder="Hora" required value="<?= e((string) $formData['hora']); ?>">
+                            <label for="hora">Hora</label>
+                            <div class="invalid-feedback"><?= e($formErrors['hora'] ?? 'Hora invalida.'); ?></div>
+                        </div>
                     </div>
                 </div>
 

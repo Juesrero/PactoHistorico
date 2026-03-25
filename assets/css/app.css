@@ -352,13 +352,22 @@ body.app-body {
     font-weight: 500;
 }
 
+.compact-floating-form .form-floating > label {
+    color: #64748b;
+    font-weight: 500;
+}
+
 .persona-form-compact .form-control,
-.persona-form-compact .form-select {
+.persona-form-compact .form-select,
+.compact-floating-form .form-control,
+.compact-floating-form .form-select {
     border-radius: 12px;
 }
 
 .persona-form-compact .form-floating > .form-control,
-.persona-form-compact .form-floating > .form-select {
+.persona-form-compact .form-floating > .form-select,
+.compact-floating-form .form-floating > .form-control,
+.compact-floating-form .form-floating > .form-select {
     min-height: calc(3.15rem + 2px);
     height: calc(3.15rem + 2px);
 }
@@ -366,6 +375,14 @@ body.app-body {
 .persona-form-compact .form-floating > textarea.form-control {
     min-height: 78px;
     height: 78px;
+}
+
+.compact-floating-form .form-floating > textarea.form-control {
+    min-height: 78px;
+}
+
+.reunion-form-compact .form-text {
+    margin-top: 0.4rem;
 }
 
 .persona-role-grid {
