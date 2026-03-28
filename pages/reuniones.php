@@ -5,7 +5,33 @@ $reunionService = new ReunionService(db());
 
 $action = request_string($_GET, 'action', 20);
 $requestedId = request_int($_GET, 'id', 0);
+$meetingSearch = request_string($_GET, 'q', 120);
 $personSearch = request_string($_GET, 'person_q', 120);
+$listSortBy = request_string($_GET, 'sort', 30);
+$listSortDir = strtolower(request_string($_GET, 'dir', 4));
+$listPage = max(1, request_int($_GET, 'p', 1));
+$attendeeSortBy = request_string($_GET, 'att_sort', 30);
+$attendeeSortDir = strtolower(request_string($_GET, 'att_dir', 4));
+$attendeePage = max(1, request_int($_GET, 'att_p', 1));
+
+$allowedListSorts = ['id', 'nombre_reunion', 'tipo_reunion', 'lugar_reunion', 'fecha', 'hora', 'total_asistentes'];
+if (!in_array($listSortBy, $allowedListSorts, true)) {
+    $listSortBy = 'fecha';
+}
+if (!in_array($listSortDir, ['asc', 'desc'], true)) {
+    $listSortDir = 'desc';
+}
+
+$allowedAttendeeSorts = ['nombre_persona', 'numero_documento', 'celular', 'es_testigo', 'es_jurado', 'fecha_registro', 'hora_registro'];
+if (!in_array($attendeeSortBy, $allowedAttendeeSorts, true)) {
+    $attendeeSortBy = 'nombre_persona';
+}
+if (!in_array($attendeeSortDir, ['asc', 'desc'], true)) {
+    $attendeeSortDir = 'asc';
+}
+
+$listPerPage = 10;
+$attendeesPerPage = 10;
 
 $formMode = 'create';
 $formErrors = [];
@@ -28,6 +54,40 @@ $meetingTypeSuggestions = [
     'Planeacion',
     'Socializacion',
 ];
+
+$buildMeetingListUrl = static function (string $search, string $sortBy, string $sortDir, int $page): string {
+    return page_url_with_query('reuniones', [
+        'q' => $search,
+        'sort' => $sortBy,
+        'dir' => $sortDir,
+        'p' => $page,
+    ]);
+};
+
+$buildDetailUrl = static function (
+    int $id,
+    string $personSearch,
+    string $listSearch,
+    string $listSortBy,
+    string $listSortDir,
+    int $listPage,
+    string $attendeeSortBy,
+    string $attendeeSortDir,
+    int $attendeePage
+): string {
+    return page_url_with_query('reuniones', [
+        'action' => 'detail',
+        'id' => $id,
+        'person_q' => $personSearch,
+        'q' => $listSearch,
+        'sort' => $listSortBy,
+        'dir' => $listSortDir,
+        'p' => $listPage,
+        'att_sort' => $attendeeSortBy,
+        'att_dir' => $attendeeSortDir,
+        'att_p' => $attendeePage,
+    ]);
+};
 
 if (is_post()) {
     if (!verify_csrf($_POST['csrf_token'] ?? null)) {
@@ -193,19 +253,94 @@ if ($action === 'detail' && $requestedId > 0) {
         redirect_to('reuniones');
     }
 
-    $detailAttendees = $reunionService->attendeesByMeeting($requestedId);
+    $totalAttendees = $reunionService->countAttendeesByMeeting($requestedId);
+    $attendeeTotalPages = max(1, (int) ceil($totalAttendees / $attendeesPerPage));
+    if ($attendeePage > $attendeeTotalPages) {
+        $attendeePage = $attendeeTotalPages;
+    }
+
+    $detailAttendees = $reunionService->attendeesByMeetingPaginated(
+        $requestedId,
+        $attendeeSortBy,
+        $attendeeSortDir,
+        $attendeesPerPage,
+        ($attendeePage - 1) * $attendeesPerPage
+    );
     $availablePersons = $reunionService->availablePersonsForMeeting($requestedId, $personSearch);
 }
 
-$reuniones = $reunionService->list();
+$totalReunionesRecords = $reunionService->count($meetingSearch);
+$listTotalPages = max(1, (int) ceil($totalReunionesRecords / $listPerPage));
+if ($listPage > $listTotalPages) {
+    $listPage = $listTotalPages;
+}
+$reuniones = $reunionService->listPaginated($meetingSearch, $listSortBy, $listSortDir, $listPerPage, ($listPage - 1) * $listPerPage);
 $availableCount = count($availablePersons);
+$totalReuniones = count($reuniones);
+$totalAsistenciasRegistradas = array_sum(array_map(static fn (array $reunion): int => (int) ($reunion['total_asistentes'] ?? 0), $reuniones));
+$reunionesProgramadas = count(array_filter($reuniones, static function (array $reunion): bool {
+    $date = trim((string) ($reunion['fecha'] ?? ''));
+    $time = trim((string) ($reunion['hora'] ?? ''));
+    if ($date === '' || $time === '') {
+        return false;
+    }
+
+    return strtotime($date . ' ' . $time) >= time();
+}));
+$listFirstRecord = $totalReunionesRecords > 0 ? (($listPage - 1) * $listPerPage) + 1 : 0;
+$listLastRecord = $totalReunionesRecords > 0 ? (($listPage - 1) * $listPerPage) + count($reuniones) : 0;
+$attendeeFirstRecord = isset($totalAttendees) && $totalAttendees > 0 ? (($attendeePage - 1) * $attendeesPerPage) + 1 : 0;
+$attendeeLastRecord = isset($totalAttendees) && $totalAttendees > 0 ? (($attendeePage - 1) * $attendeesPerPage) + count($detailAttendees) : 0;
 ?>
 
+<section class="module-hero card-clean mb-4">
+    <div class="row g-4 align-items-stretch">
+        <div class="col-xl-8">
+            <div class="module-hero-copy">
+                <span class="dashboard-kicker">Coordinacion operativa</span>
+                <h1 class="dashboard-title">Reuniones</h1>
+                <p class="dashboard-subtitle">Programa jornadas, organiza la informacion basica del encuentro y continua la asistencia desde el mismo detalle sin salir del flujo operativo.</p>
+
+                <div class="module-hero-actions">
+                    <a href="<?= e(page_url('reuniones')); ?>" class="btn btn-primary">
+                        <i class="fa-solid fa-calendar-plus me-1"></i><?= $formMode === 'edit' ? 'Nueva reunion' : 'Gestionar formulario'; ?>
+                    </a>
+                    <?php if ($detailData !== null): ?>
+                        <a href="<?= e($detailAnchorUrl ?? page_url('reuniones')); ?>" class="btn btn-outline-success">
+                            <i class="fa-solid fa-clipboard-check me-1"></i>Seguir asistencia
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="module-hero-stats">
+                <article class="module-hero-stat">
+                    <small>Reuniones</small>
+                    <strong><?= e((string) $totalReunionesRecords); ?></strong>
+                    <span>Total de jornadas registradas en el sistema.</span>
+                </article>
+                <article class="module-hero-stat">
+                    <small>Programadas</small>
+                    <strong><?= e((string) $reunionesProgramadas); ?></strong>
+                    <span>Encuentros futuros segun fecha y hora guardadas.</span>
+                </article>
+                <article class="module-hero-stat">
+                    <small>Asistencias</small>
+                    <strong><?= e((string) $totalAsistenciasRegistradas); ?></strong>
+                    <span>Acumuladas entre todas las reuniones listadas.</span>
+                </article>
+            </div>
+        </div>
+    </div>
+</section>
+
 <section class="row g-3">
-    <div class="col-xl-4">
-        <div class="card-clean p-4">
-            <h1 class="h5 mb-1"><?= $formMode === 'edit' ? 'Editar reunion' : 'Nueva reunion'; ?></h1>
-            <p class="text-muted small mb-3">Registre nombre, objetivo, tipo, lugar, fecha y hora sin afectar la toma de asistencia.</p>
+    <div class="col-xl-4 module-layout-sidebar">
+        <div class="card-clean p-4 module-panel-card module-sticky-sidebar">
+            <h1 class="module-panel-title mb-1"><?= $formMode === 'edit' ? 'Editar reunion' : 'Nueva reunion'; ?></h1>
+            <p class="module-panel-subtitle mb-3">Registre nombre, objetivo, tipo, lugar, fecha y hora sin afectar la toma de asistencia.</p>
 
             <?php if (isset($formErrors['general'])): ?>
                 <div class="alert alert-danger"><?= e($formErrors['general']); ?></div>
@@ -286,7 +421,7 @@ $availableCount = count($availablePersons);
                 <div class="d-flex gap-2 mt-3">
                     <button type="submit" class="btn btn-primary flex-grow-1"><i class="fa-solid fa-floppy-disk me-1"></i><?= $formMode === 'edit' ? 'Actualizar' : 'Guardar'; ?></button>
                     <?php if ($formMode === 'edit'): ?>
-                        <a href="<?= e(page_url_with_query('reuniones', ['action' => 'detail', 'id' => (int) $formData['id']])); ?>" class="btn btn-outline-secondary"><i class="fa-solid fa-xmark me-1"></i>Cancelar</a>
+                        <a href="<?= e($buildDetailUrl((int) $formData['id'], $personSearch, $meetingSearch, $listSortBy, $listSortDir, $listPage, $attendeeSortBy, $attendeeSortDir, $attendeePage)); ?>" class="btn btn-outline-secondary"><i class="fa-solid fa-xmark me-1"></i>Cancelar</a>
                     <?php endif; ?>
                 </div>
             </form>
@@ -294,25 +429,44 @@ $availableCount = count($availablePersons);
     </div>
 
     <div class="col-xl-8">
-        <div class="card-clean p-4 mb-3">
-            <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
+        <div class="card-clean p-4 mb-3 module-panel-card">
+            <div class="module-panel-head">
                 <div>
-                    <h2 class="h5 mb-1">Listado de reuniones</h2>
-                    <p class="small text-muted mb-0">Vista resumida con tipo, agenda y acceso directo al detalle para seguir tomando asistencia.</p>
+                    <h2 class="module-panel-title">Listado de reuniones</h2>
+                    <p class="module-panel-subtitle">Vista resumida con tipo, agenda y acceso directo al detalle para seguir tomando asistencia.</p>
                 </div>
-                <span class="badge text-bg-light border">Total: <?= e((string) count($reuniones)); ?></span>
+                <span class="module-panel-badge">Total: <?= e((string) $totalReunionesRecords); ?></span>
+            </div>
+            <form method="get" class="row g-2 align-items-end mb-3">
+                <input type="hidden" name="page" value="reuniones">
+                <input type="hidden" name="sort" value="<?= e($listSortBy); ?>">
+                <input type="hidden" name="dir" value="<?= e($listSortDir); ?>">
+                <div class="col-md-8">
+                    <label for="q" class="form-label">Buscar reunion</label>
+                    <input id="q" name="q" type="text" class="form-control" maxlength="120" value="<?= e($meetingSearch); ?>" placeholder="Busque por nombre, objetivo, tipo, organizacion o lugar">
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary flex-grow-1"><i class="fa-solid fa-magnifying-glass me-1"></i>Buscar</button>
+                    <a href="<?= e(page_url('reuniones')); ?>" class="btn btn-outline-secondary"><i class="fa-solid fa-rotate-left me-1"></i>Limpiar</a>
+                </div>
+            </form>
+            <div class="module-toolbar">
+                <div class="module-toolbar-meta">
+                    <span><i class="fa-solid fa-filter me-1"></i>Orden actual: <strong><?= e($listSortBy); ?></strong> (<?= e(strtoupper($listSortDir)); ?>)</span>
+                    <span><i class="fa-solid fa-list-ol me-1"></i>Mostrando <?= e((string) $listFirstRecord); ?> - <?= e((string) $listLastRecord); ?> de <?= e((string) $totalReunionesRecords); ?></span>
+                </div>
             </div>
             <div class="table-responsive">
-                <table class="table align-middle">
+                <table class="table align-middle module-table">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Reunion</th>
-                            <th>Tipo</th>
-                            <th>Lugar</th>
-                            <th>Fecha</th>
-                            <th>Hora</th>
-                            <th>Asistentes</th>
+                            <th><div class="sort-header"><span>#</span><span class="sort-controls"><a class="sort-link <?= $listSortBy === 'id' && $listSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'id', 'asc', 1)); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $listSortBy === 'id' && $listSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'id', 'desc', 1)); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                            <th><div class="sort-header"><span>Reunion</span><span class="sort-controls"><a class="sort-link <?= $listSortBy === 'nombre_reunion' && $listSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'nombre_reunion', 'asc', 1)); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $listSortBy === 'nombre_reunion' && $listSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'nombre_reunion', 'desc', 1)); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                            <th><div class="sort-header"><span>Tipo</span><span class="sort-controls"><a class="sort-link <?= $listSortBy === 'tipo_reunion' && $listSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'tipo_reunion', 'asc', 1)); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $listSortBy === 'tipo_reunion' && $listSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'tipo_reunion', 'desc', 1)); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                            <th><div class="sort-header"><span>Lugar</span><span class="sort-controls"><a class="sort-link <?= $listSortBy === 'lugar_reunion' && $listSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'lugar_reunion', 'asc', 1)); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $listSortBy === 'lugar_reunion' && $listSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'lugar_reunion', 'desc', 1)); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                            <th><div class="sort-header"><span>Fecha</span><span class="sort-controls"><a class="sort-link <?= $listSortBy === 'fecha' && $listSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'fecha', 'asc', 1)); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $listSortBy === 'fecha' && $listSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'fecha', 'desc', 1)); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                            <th><div class="sort-header"><span>Hora</span><span class="sort-controls"><a class="sort-link <?= $listSortBy === 'hora' && $listSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'hora', 'asc', 1)); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $listSortBy === 'hora' && $listSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'hora', 'desc', 1)); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                            <th><div class="sort-header"><span>Asistentes</span><span class="sort-controls"><a class="sort-link <?= $listSortBy === 'total_asistentes' && $listSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'total_asistentes', 'asc', 1)); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $listSortBy === 'total_asistentes' && $listSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($buildMeetingListUrl($meetingSearch, 'total_asistentes', 'desc', 1)); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
                             <th class="text-end">Acciones</th>
                         </tr>
                     </thead>
@@ -340,8 +494,8 @@ $availableCount = count($availablePersons);
                                     <td><?= e(substr((string) $reunion['hora'], 0, 5)); ?></td>
                                     <td><span class="badge text-bg-info"><?= e((string) $reunion['total_asistentes']); ?></span></td>
                                     <td class="text-end actions-col">
-                                        <a href="<?= e(page_url_with_query('reuniones', ['action' => 'detail', 'id' => (int) $reunion['id']])); ?>" class="btn btn-sm btn-outline-dark"><i class="fa-solid fa-eye me-1"></i>Ver</a>
-                                        <a href="<?= e(page_url_with_query('reuniones', ['action' => 'edit', 'id' => (int) $reunion['id']])); ?>" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-pen-to-square me-1"></i>Editar</a>
+                                        <a href="<?= e($buildDetailUrl((int) $reunion['id'], '', $meetingSearch, $listSortBy, $listSortDir, $listPage, 'nombre_persona', 'asc', 1)); ?>" class="btn btn-sm btn-outline-dark"><i class="fa-solid fa-eye me-1"></i>Ver</a>
+                                        <a href="<?= e(page_url_with_query('reuniones', ['action' => 'edit', 'id' => (int) $reunion['id'], 'q' => $meetingSearch, 'sort' => $listSortBy, 'dir' => $listSortDir, 'p' => $listPage])); ?>" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-pen-to-square me-1"></i>Editar</a>
                                         <form method="post" class="d-inline" data-confirm="Confirma eliminar esta reunion? Se eliminaran tambien sus asistencias.">
                                             <?= csrf_field(); ?>
                                             <input type="hidden" name="form_action" value="delete_reunion">
@@ -355,16 +509,39 @@ $availableCount = count($availablePersons);
                     </tbody>
                 </table>
             </div>
+            <div class="module-pagination">
+                <div class="module-pagination-status">Pagina <?= e((string) $listPage); ?> de <?= e((string) $listTotalPages); ?></div>
+                <div class="module-pagination-controls">
+                    <?php if ($listPage > 1): ?>
+                        <a href="<?= e($buildMeetingListUrl($meetingSearch, $listSortBy, $listSortDir, $listPage - 1)); ?>" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i>Anterior</a>
+                    <?php else: ?>
+                        <span class="btn btn-sm btn-outline-secondary disabled"><i class="fa-solid fa-arrow-left me-1"></i>Anterior</span>
+                    <?php endif; ?>
+                    <span class="module-pagination-index"><?= e((string) $listPage); ?>/<?= e((string) $listTotalPages); ?></span>
+                    <?php if ($listPage < $listTotalPages): ?>
+                        <a href="<?= e($buildMeetingListUrl($meetingSearch, $listSortBy, $listSortDir, $listPage + 1)); ?>" class="btn btn-sm btn-outline-secondary">Siguiente<i class="fa-solid fa-arrow-right ms-1"></i></a>
+                    <?php else: ?>
+                        <span class="btn btn-sm btn-outline-secondary disabled">Siguiente<i class="fa-solid fa-arrow-right ms-1"></i></span>
+                    <?php endif; ?>
+                </div>
+            </div>
         </div>
 
         <?php if ($detailData !== null): ?>
             <?php
                 $excelExportUrl = url('exports/excel/reunion_asistencia_excel.php') . '?reunion_id=' . urlencode((string) $detailData['id']);
                 $pdfExportUrl = url('exports/pdf/reunion_asistencia_pdf.php') . '?reunion_id=' . urlencode((string) $detailData['id']);
-                $detailAnchorUrl = page_url_with_query('reuniones', ['action' => 'detail', 'id' => (int) $detailData['id']]) . '#agregar-asistencia';
+                $detailBaseUrl = $buildDetailUrl((int) $detailData['id'], $personSearch, $meetingSearch, $listSortBy, $listSortDir, $listPage, $attendeeSortBy, $attendeeSortDir, $attendeePage);
+                $detailAnchorUrl = $detailBaseUrl . '#agregar-asistencia';
                 $showOrganization = !empty($detailData['organizacion']) && (string) $detailData['organizacion'] !== (string) ($detailData['tipo_reunion'] ?? '');
+                $attendeeSortUrl = static function (string $column, string $direction) use ($buildDetailUrl, $detailData, $personSearch, $meetingSearch, $listSortBy, $listSortDir, $listPage): string {
+                    return $buildDetailUrl((int) $detailData['id'], $personSearch, $meetingSearch, $listSortBy, $listSortDir, $listPage, $column, $direction, 1) . '#asistentes-reunion';
+                };
+                $attendeePageUrl = static function (int $page) use ($buildDetailUrl, $detailData, $personSearch, $meetingSearch, $listSortBy, $listSortDir, $listPage, $attendeeSortBy, $attendeeSortDir): string {
+                    return $buildDetailUrl((int) $detailData['id'], $personSearch, $meetingSearch, $listSortBy, $listSortDir, $listPage, $attendeeSortBy, $attendeeSortDir, $page) . '#asistentes-reunion';
+                };
             ?>
-            <div class="card-clean p-4 attendance-detail-card">
+            <div class="card-clean p-4 attendance-detail-card module-panel-card">
                 <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
                     <div>
                         <div class="d-flex flex-wrap gap-2 mb-2">
@@ -376,8 +553,8 @@ $availableCount = count($availablePersons);
                         <p class="text-muted mb-0">Detalle operativo de la reunion y registro de asistencia en la misma vista.</p>
                     </div>
                     <div class="d-flex flex-wrap gap-2">
-                        <a href="<?= e(page_url_with_query('reuniones', ['action' => 'edit', 'id' => (int) $detailData['id']])); ?>" class="btn btn-outline-primary"><i class="fa-solid fa-pen-to-square me-1"></i>Editar reunion</a>
-                        <a href="<?= e(page_url('reuniones')); ?>" class="btn btn-outline-secondary"><i class="fa-solid fa-xmark me-1"></i>Cerrar</a>
+                        <a href="<?= e(page_url_with_query('reuniones', ['action' => 'edit', 'id' => (int) $detailData['id'], 'q' => $meetingSearch, 'sort' => $listSortBy, 'dir' => $listSortDir, 'p' => $listPage, 'att_sort' => $attendeeSortBy, 'att_dir' => $attendeeSortDir, 'att_p' => $attendeePage])); ?>" class="btn btn-outline-primary"><i class="fa-solid fa-pen-to-square me-1"></i>Editar reunion</a>
+                        <a href="<?= e($buildMeetingListUrl($meetingSearch, $listSortBy, $listSortDir, $listPage)); ?>" class="btn btn-outline-secondary"><i class="fa-solid fa-xmark me-1"></i>Cerrar</a>
                     </div>
                 </div>
 
@@ -504,16 +681,22 @@ $availableCount = count($availablePersons);
                     </div>
                 </div>
 
+                <div id="asistentes-reunion" class="module-toolbar">
+                    <div class="module-toolbar-meta">
+                        <span><i class="fa-solid fa-filter me-1"></i>Orden actual: <strong><?= e($attendeeSortBy); ?></strong> (<?= e(strtoupper($attendeeSortDir)); ?>)</span>
+                        <span><i class="fa-solid fa-list-ol me-1"></i>Mostrando <?= e((string) $attendeeFirstRecord); ?> - <?= e((string) $attendeeLastRecord); ?> de <?= e((string) ($totalAttendees ?? 0)); ?></span>
+                    </div>
+                </div>
                 <div class="table-responsive">
-                    <table class="table align-middle mb-0 attendance-table">
+                    <table class="table align-middle mb-0 attendance-table module-table">
                         <thead>
                             <tr>
-                                <th>Persona</th>
-                                <th>Documento</th>
-                                <th>Telefono</th>
-                                <th>Roles</th>
-                                <th>Fecha registro</th>
-                                <th>Hora registro</th>
+                                <th><div class="sort-header"><span>Persona</span><span class="sort-controls"><a class="sort-link <?= $attendeeSortBy === 'nombre_persona' && $attendeeSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($attendeeSortUrl('nombre_persona', 'asc')); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $attendeeSortBy === 'nombre_persona' && $attendeeSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($attendeeSortUrl('nombre_persona', 'desc')); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                                <th><div class="sort-header"><span>Documento</span><span class="sort-controls"><a class="sort-link <?= $attendeeSortBy === 'numero_documento' && $attendeeSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($attendeeSortUrl('numero_documento', 'asc')); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $attendeeSortBy === 'numero_documento' && $attendeeSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($attendeeSortUrl('numero_documento', 'desc')); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                                <th><div class="sort-header"><span>Telefono</span><span class="sort-controls"><a class="sort-link <?= $attendeeSortBy === 'celular' && $attendeeSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($attendeeSortUrl('celular', 'asc')); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $attendeeSortBy === 'celular' && $attendeeSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($attendeeSortUrl('celular', 'desc')); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                                <th><div class="sort-header"><span>Roles</span><span class="sort-controls"><a class="sort-link <?= $attendeeSortBy === 'es_testigo' && $attendeeSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($attendeeSortUrl('es_testigo', 'asc')); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $attendeeSortBy === 'es_testigo' && $attendeeSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($attendeeSortUrl('es_testigo', 'desc')); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                                <th><div class="sort-header"><span>Fecha registro</span><span class="sort-controls"><a class="sort-link <?= $attendeeSortBy === 'fecha_registro' && $attendeeSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($attendeeSortUrl('fecha_registro', 'asc')); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $attendeeSortBy === 'fecha_registro' && $attendeeSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($attendeeSortUrl('fecha_registro', 'desc')); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                                <th><div class="sort-header"><span>Hora registro</span><span class="sort-controls"><a class="sort-link <?= $attendeeSortBy === 'hora_registro' && $attendeeSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($attendeeSortUrl('hora_registro', 'asc')); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $attendeeSortBy === 'hora_registro' && $attendeeSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($attendeeSortUrl('hora_registro', 'desc')); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
                                 <th class="text-end">Accion</th>
                             </tr>
                         </thead>
@@ -556,6 +739,22 @@ $availableCount = count($availablePersons);
                             <?php endif; ?>
                         </tbody>
                     </table>
+                </div>
+                <div class="module-pagination">
+                    <div class="module-pagination-status">Pagina <?= e((string) $attendeePage); ?> de <?= e((string) ($attendeeTotalPages ?? 1)); ?></div>
+                    <div class="module-pagination-controls">
+                        <?php if ($attendeePage > 1): ?>
+                            <a href="<?= e($attendeePageUrl($attendeePage - 1)); ?>" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i>Anterior</a>
+                        <?php else: ?>
+                            <span class="btn btn-sm btn-outline-secondary disabled"><i class="fa-solid fa-arrow-left me-1"></i>Anterior</span>
+                        <?php endif; ?>
+                        <span class="module-pagination-index"><?= e((string) $attendeePage); ?>/<?= e((string) ($attendeeTotalPages ?? 1)); ?></span>
+                        <?php if (($attendeeTotalPages ?? 1) > $attendeePage): ?>
+                            <a href="<?= e($attendeePageUrl($attendeePage + 1)); ?>" class="btn btn-sm btn-outline-secondary">Siguiente<i class="fa-solid fa-arrow-right ms-1"></i></a>
+                        <?php else: ?>
+                            <span class="btn btn-sm btn-outline-secondary disabled">Siguiente<i class="fa-solid fa-arrow-right ms-1"></i></span>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         <?php endif; ?>

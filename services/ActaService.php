@@ -29,6 +29,16 @@ class ActaService
             'application/octet-stream',
         ],
     ];
+    private const LIST_SORT_MAP = [
+        'consecutivo' => 'consecutivo',
+        'nombre_o_objetivo' => 'nombre_o_objetivo',
+        'responsable' => 'responsable',
+        'lugar' => 'lugar',
+        'tiene_adjunto' => 'tiene_adjunto',
+        'fecha_actualizacion' => 'fecha_actualizacion',
+        'fecha_creacion' => 'fecha_creacion',
+        'id' => 'id',
+    ];
 
     public function __construct(PDO $pdo, ?string $storageRoot = null)
     {
@@ -40,7 +50,12 @@ class ActaService
 
     public function list(string $search = ''): array
     {
-        $sql = 'SELECT *
+        return $this->listPaginated($search, 'fecha_actualizacion', 'desc', PHP_INT_MAX, 0);
+    }
+
+    public function count(string $search = ''): int
+    {
+        $sql = 'SELECT COUNT(*)
                 FROM (' . $this->buildBaseSelectSql() . ') actas_view';
 
         $params = [];
@@ -53,10 +68,50 @@ class ActaService
             $params['search'] = '%' . $search . '%';
         }
 
-        $sql .= ' ORDER BY fecha_actualizacion DESC, id DESC';
-
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function listPaginated(string $search, string $sortBy, string $sortDir, int $limit, int $offset): array
+    {
+        $orderColumn = self::LIST_SORT_MAP[$sortBy] ?? self::LIST_SORT_MAP['fecha_actualizacion'];
+        $orderDir = strtolower($sortDir) === 'asc' ? 'ASC' : 'DESC';
+
+        $sql = 'SELECT actas_view.*,
+                       CASE WHEN TRIM(COALESCE(ruta_archivo, "")) <> "" THEN 1 ELSE 0 END AS tiene_adjunto
+                FROM (' . $this->buildBaseSelectSql() . ') actas_view';
+
+        $params = [];
+
+        if ($search !== '') {
+            $sql .= ' WHERE consecutivo LIKE :search
+                      OR nombre_o_objetivo LIKE :search
+                      OR responsable LIKE :search
+                      OR lugar LIKE :search';
+            $params['search'] = '%' . $search . '%';
+        }
+
+        $sql .= ' ORDER BY ' . $orderColumn . ' ' . $orderDir;
+
+        if ($orderColumn !== 'id') {
+            $sql .= ', id DESC';
+        }
+
+        if ($limit < PHP_INT_MAX) {
+            $sql .= ' LIMIT :limit OFFSET :offset';
+        }
+
+        $stmt = $this->pdo->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(':' . $key, $value, PDO::PARAM_STR);
+        }
+        if ($limit < PHP_INT_MAX) {
+            $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+            $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        }
+        $stmt->execute();
 
         return $stmt->fetchAll();
     }

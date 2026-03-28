@@ -11,6 +11,9 @@ $action = request_string($_GET, 'action', 20);
 $requestedId = request_int($_GET, 'id', 0);
 $typeAction = request_string($_GET, 'type_action', 20);
 $requestedTypeId = request_int($_GET, 'type_id', 0);
+$typeSortBy = request_string($_GET, 'type_sort', 30);
+$typeSortDir = strtolower(request_string($_GET, 'type_dir', 4));
+$typePage = max(1, request_int($_GET, 'type_p', 1));
 
 $allowedSorts = ['id', 'nombres', 'apellidos', 'numero_documento', 'celular', 'correo', 'es_testigo', 'es_jurado', 'es_militante', 'tipo_poblacion'];
 $sortBy = request_string($_GET, 'sort', 30);
@@ -25,6 +28,7 @@ if (!in_array($sortDir, ['asc', 'desc'], true)) {
 
 $currentListPage = max(1, request_int($_GET, 'p', 1));
 $perPage = 12;
+$typePerPage = 6;
 
 $formMode = 'create';
 $formErrors = [];
@@ -56,6 +60,13 @@ $typeFormData = [
 
 $maxImportErrorsToShow = 12;
 $genderOptions = ['', 'Femenino', 'Masculino', 'Otro'];
+$allowedTypeSorts = ['nombre', 'activo', 'total_personas'];
+if (!in_array($typeSortBy, $allowedTypeSorts, true)) {
+    $typeSortBy = 'nombre';
+}
+if (!in_array($typeSortDir, ['asc', 'desc'], true)) {
+    $typeSortDir = 'asc';
+}
 
 $splitLegacyFullName = static function (string $fullName): array {
     $fullName = trim($fullName);
@@ -130,6 +141,15 @@ if (is_post()) {
 
     $returnPage = max(1, request_int($_POST, 'return_p', $currentListPage));
     $returnUrl = $buildListUrl($returnQ, $returnSort, $returnDir, $returnPage);
+    $returnTypeSort = request_string($_POST, 'return_type_sort', 30);
+    if (!in_array($returnTypeSort, $allowedTypeSorts, true)) {
+        $returnTypeSort = $typeSortBy;
+    }
+    $returnTypeDir = strtolower(request_string($_POST, 'return_type_dir', 4));
+    if (!in_array($returnTypeDir, ['asc', 'desc'], true)) {
+        $returnTypeDir = $typeSortDir;
+    }
+    $returnTypePage = max(1, request_int($_POST, 'return_type_p', $typePage));
 
     if ($postAction === 'create_persona') {
         [$clean, $formErrors] = Validator::validatePersona($_POST);
@@ -234,7 +254,7 @@ if (is_post()) {
             try {
                 $tipoPoblacionService->create($cleanType);
                 flash('message', 'Tipo de poblacion creado correctamente.', 'success');
-                redirect_to_url($withTypesAnchor($returnUrl));
+                redirect_to_url($typePaginationLink($returnTypePage, $returnQ, $returnSort, $returnDir, $returnTypeSort, $returnTypeDir, $returnPage));
             } catch (Throwable $exception) {
                 $typeFormErrors['general'] = 'No fue posible crear el tipo de poblacion.';
             }
@@ -260,7 +280,7 @@ if (is_post()) {
             try {
                 $tipoPoblacionService->update($typeId, $cleanType);
                 flash('message', 'Tipo de poblacion actualizado correctamente.', 'success');
-                redirect_to_url($withTypesAnchor($returnUrl));
+                redirect_to_url($typePaginationLink($returnTypePage, $returnQ, $returnSort, $returnDir, $returnTypeSort, $returnTypeDir, $returnPage));
             } catch (Throwable $exception) {
                 $typeFormErrors['general'] = 'No fue posible actualizar el tipo de poblacion.';
             }
@@ -289,7 +309,7 @@ if (is_post()) {
             }
         }
 
-        redirect_to_url($withTypesAnchor($returnUrl));
+        redirect_to_url($typePaginationLink($returnTypePage, $returnQ, $returnSort, $returnDir, $returnTypeSort, $returnTypeDir, $returnPage));
     }
 }
 
@@ -351,9 +371,38 @@ if ($currentListPage > $totalPages) {
 $offset = ($currentListPage - 1) * $perPage;
 $personas = $personaService->listPaginated($search, $sortBy, $sortDir, $perPage, $offset);
 $tiposPoblacion = $tipoPoblacionService->listAll();
+$sortedTiposPoblacion = $tiposPoblacion;
+usort($sortedTiposPoblacion, static function (array $left, array $right) use ($typeSortBy, $typeSortDir): int {
+    $leftValue = $left[$typeSortBy] ?? null;
+    $rightValue = $right[$typeSortBy] ?? null;
+
+    if (in_array($typeSortBy, ['activo', 'total_personas'], true)) {
+        $comparison = ((int) $leftValue) <=> ((int) $rightValue);
+    } else {
+        $comparison = strcasecmp((string) $leftValue, (string) $rightValue);
+    }
+
+    if ($comparison === 0) {
+        $comparison = strcasecmp((string) ($left['nombre'] ?? ''), (string) ($right['nombre'] ?? ''));
+    }
+
+    return $typeSortDir === 'desc' ? -$comparison : $comparison;
+});
+$totalTypeRecords = count($sortedTiposPoblacion);
+$typeTotalPages = max(1, (int) ceil($totalTypeRecords / $typePerPage));
+if ($typePage > $typeTotalPages) {
+    $typePage = $typeTotalPages;
+}
+$typesOffset = ($typePage - 1) * $typePerPage;
+$tiposPoblacionPage = array_slice($sortedTiposPoblacion, $typesOffset, $typePerPage);
 $clearUrl = page_url('personas');
 $firstRecord = $totalRecords > 0 ? ($offset + 1) : 0;
 $lastRecord = $totalRecords > 0 ? ($offset + count($personas)) : 0;
+$typeFirstRecord = $totalTypeRecords > 0 ? $typesOffset + 1 : 0;
+$typeLastRecord = $totalTypeRecords > 0 ? $typesOffset + count($tiposPoblacionPage) : 0;
+$totalTiposPoblacion = count($tiposPoblacion);
+$tiposActivos = count(array_filter($tiposPoblacion, static fn (array $tipo): bool => (int) ($tipo['activo'] ?? 0) === 1));
+$tiposInactivos = max(0, $totalTiposPoblacion - $tiposActivos);
 
 $sortLink = static function (string $column, string $direction, string $search): string {
     return page_url_with_query('personas', [
@@ -373,6 +422,30 @@ $paginationLink = static function (int $page, string $search, string $sortBy, st
     ]);
 };
 
+$typeSortLink = static function (string $column, string $direction, string $search, string $sortBy, string $sortDir, int $page): string {
+    return page_url_with_query('personas', [
+        'q' => $search,
+        'sort' => $sortBy,
+        'dir' => $sortDir,
+        'p' => $page,
+        'type_sort' => $column,
+        'type_dir' => $direction,
+        'type_p' => 1,
+    ]) . '#tipos-poblacion';
+};
+
+$typePaginationLink = static function (int $typePage, string $search, string $sortBy, string $sortDir, string $typeSortBy, string $typeSortDir, int $page): string {
+    return page_url_with_query('personas', [
+        'q' => $search,
+        'sort' => $sortBy,
+        'dir' => $sortDir,
+        'p' => $page,
+        'type_sort' => $typeSortBy,
+        'type_dir' => $typeSortDir,
+        'type_p' => $typePage,
+    ]) . '#tipos-poblacion';
+};
+
 $openAccordionPanel = 'persona';
 if ($importReport !== null) {
     $openAccordionPanel = 'importar';
@@ -385,8 +458,53 @@ if ($formMode === 'edit' || $formErrors !== []) {
 }
 ?>
 
+<section class="module-hero card-clean mb-4">
+    <div class="row g-4 align-items-stretch">
+        <div class="col-xl-8">
+            <div class="module-hero-copy">
+                <span class="dashboard-kicker">Gestion de base social</span>
+                <h1 class="dashboard-title">Personas</h1>
+                <p class="dashboard-subtitle">Administra el directorio principal del proceso, importa registros, clasifica tipos de poblacion y conserva roles clave para asistencia y analisis.</p>
+
+                <div class="module-hero-actions">
+                    <a href="#collapsePersonaForm" class="btn btn-primary" data-bs-toggle="collapse" aria-controls="collapsePersonaForm" aria-expanded="<?= $openAccordionPanel === 'persona' ? 'true' : 'false'; ?>">
+                        <i class="fa-solid fa-user-plus me-1"></i><?= $formMode === 'edit' ? 'Seguir editando' : 'Registrar persona'; ?>
+                    </a>
+                    <a href="<?= e($personasTemplateUrl); ?>" class="btn btn-outline-success">
+                        <i class="fa-solid fa-download me-1"></i>Descargar plantilla
+                    </a>
+                    <a href="#tipos-poblacion" class="btn btn-outline-secondary">
+                        <i class="fa-solid fa-tags me-1"></i>Ver tipos de poblacion
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="module-hero-stats">
+                <article class="module-hero-stat">
+                    <small>Personas</small>
+                    <strong><?= e((string) $totalRecords); ?></strong>
+                    <span>Coinciden con el filtro actual del listado.</span>
+                </article>
+                <article class="module-hero-stat">
+                    <small>Tipos activos</small>
+                    <strong><?= e((string) $tiposActivos); ?></strong>
+                    <span><?= e((string) $totalTiposPoblacion); ?> categorias configuradas en total.</span>
+                </article>
+                <article class="module-hero-stat">
+                    <small>Tipos inactivos</small>
+                    <strong><?= e((string) $tiposInactivos); ?></strong>
+                    <span>Catalogos pausados que no se ofrecen por defecto.</span>
+                </article>
+            </div>
+        </div>
+    </div>
+</section>
+
 <section class="row g-3">
-    <div class="col-xl-4">
+    <div class="col-xl-4 module-layout-sidebar">
+        <div class="module-sticky-sidebar">
         <div class="accordion" id="personasSidebarAccordion">
             <div class="accordion-item card-clean mb-3 overflow-hidden">
                 <h2 class="accordion-header" id="headingPersonaForm">
@@ -628,6 +746,9 @@ if ($formMode === 'edit' || $formErrors !== []) {
                 <input type="hidden" name="return_sort" value="<?= e($sortBy); ?>">
                 <input type="hidden" name="return_dir" value="<?= e($sortDir); ?>">
                 <input type="hidden" name="return_p" value="<?= e((string) $currentListPage); ?>">
+                <input type="hidden" name="return_type_sort" value="<?= e($typeSortBy); ?>">
+                <input type="hidden" name="return_type_dir" value="<?= e($typeSortDir); ?>">
+                <input type="hidden" name="return_type_p" value="<?= e((string) $typePage); ?>">
                 <?php if ($typeFormMode === 'edit'): ?>
                     <input type="hidden" name="type_id" value="<?= e((string) $typeFormData['id']); ?>">
                 <?php endif; ?>
@@ -656,26 +777,33 @@ if ($formMode === 'edit' || $formErrors !== []) {
                 <div class="d-flex gap-2 mb-3">
                     <button type="submit" class="btn btn-outline-primary flex-grow-1"><i class="fa-solid fa-floppy-disk me-1"></i><?= $typeFormMode === 'edit' ? 'Actualizar tipo' : 'Crear tipo'; ?></button>
                     <?php if ($typeFormMode === 'edit'): ?>
-                        <a href="<?= e($withTypesAnchor($buildListUrl($search, $sortBy, $sortDir, $currentListPage))); ?>" class="btn btn-outline-secondary"><i class="fa-solid fa-xmark me-1"></i>Cancelar</a>
+                        <a href="<?= e($typePaginationLink($typePage, $search, $sortBy, $sortDir, $typeSortBy, $typeSortDir, $currentListPage)); ?>" class="btn btn-outline-secondary"><i class="fa-solid fa-xmark me-1"></i>Cancelar</a>
                     <?php endif; ?>
                 </div>
             </form>
 
+            <div class="module-toolbar">
+                <div class="module-toolbar-meta">
+                    <span><i class="fa-solid fa-filter me-1"></i>Orden actual: <strong><?= e($typeSortBy); ?></strong> (<?= e(strtoupper($typeSortDir)); ?>)</span>
+                    <span><i class="fa-solid fa-list-ol me-1"></i>Mostrando <?= e((string) $typeFirstRecord); ?> - <?= e((string) $typeLastRecord); ?> de <?= e((string) $totalTypeRecords); ?></span>
+                </div>
+            </div>
+
             <div class="table-responsive">
-                <table class="table align-middle table-sm mb-0">
+                <table class="table align-middle table-sm mb-0 module-table">
                     <thead>
                         <tr>
-                            <th>Nombre</th>
-                            <th>Estado</th>
-                            <th>Personas</th>
+                            <th><div class="sort-header"><span>Nombre</span><span class="sort-controls"><a class="sort-link <?= $typeSortBy === 'nombre' && $typeSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($typeSortLink('nombre', 'asc', $search, $sortBy, $sortDir, $currentListPage)); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $typeSortBy === 'nombre' && $typeSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($typeSortLink('nombre', 'desc', $search, $sortBy, $sortDir, $currentListPage)); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                            <th><div class="sort-header"><span>Estado</span><span class="sort-controls"><a class="sort-link <?= $typeSortBy === 'activo' && $typeSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($typeSortLink('activo', 'asc', $search, $sortBy, $sortDir, $currentListPage)); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $typeSortBy === 'activo' && $typeSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($typeSortLink('activo', 'desc', $search, $sortBy, $sortDir, $currentListPage)); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
+                            <th><div class="sort-header"><span>Personas</span><span class="sort-controls"><a class="sort-link <?= $typeSortBy === 'total_personas' && $typeSortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($typeSortLink('total_personas', 'asc', $search, $sortBy, $sortDir, $currentListPage)); ?>"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $typeSortBy === 'total_personas' && $typeSortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($typeSortLink('total_personas', 'desc', $search, $sortBy, $sortDir, $currentListPage)); ?>"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
                             <th class="text-end">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if ($tiposPoblacion === []): ?>
+                        <?php if ($tiposPoblacionPage === []): ?>
                             <tr><td colspan="4" class="text-center text-muted py-3">Aun no hay tipos de poblacion registrados.</td></tr>
                         <?php else: ?>
-                            <?php foreach ($tiposPoblacion as $tipo): ?>
+                            <?php foreach ($tiposPoblacionPage as $tipo): ?>
                                 <tr>
                                     <td>
                                         <div class="fw-semibold"><?= e((string) $tipo['nombre']); ?></div>
@@ -684,7 +812,7 @@ if ($formMode === 'edit' || $formErrors !== []) {
                                     <td><span class="badge <?= (int) $tipo['activo'] === 1 ? 'text-bg-success' : 'text-bg-secondary'; ?>"><?= (int) $tipo['activo'] === 1 ? 'Activo' : 'Inactivo'; ?></span></td>
                                     <td><?= e((string) $tipo['total_personas']); ?></td>
                                     <td class="text-end actions-col">
-                                        <a href="<?= e($withTypesAnchor(page_url_with_query('personas', ['type_action' => 'edit', 'type_id' => (int) $tipo['id'], 'q' => $search, 'sort' => $sortBy, 'dir' => $sortDir, 'p' => $currentListPage]))); ?>" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-pen-to-square me-1"></i>Editar</a>
+                                        <a href="<?= e(page_url_with_query('personas', ['type_action' => 'edit', 'type_id' => (int) $tipo['id'], 'q' => $search, 'sort' => $sortBy, 'dir' => $sortDir, 'p' => $currentListPage, 'type_sort' => $typeSortBy, 'type_dir' => $typeSortDir, 'type_p' => $typePage]) . '#tipos-poblacion'); ?>" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-pen-to-square me-1"></i>Editar</a>
                                         <form method="post" class="d-inline" data-confirm="<?= (int) $tipo['activo'] === 1 ? 'Confirma inactivar este tipo de poblacion?' : 'Confirma activar este tipo de poblacion?'; ?>">
                                             <?= csrf_field(); ?>
                                             <input type="hidden" name="form_action" value="toggle_tipo_poblacion">
@@ -694,6 +822,9 @@ if ($formMode === 'edit' || $formErrors !== []) {
                                             <input type="hidden" name="return_sort" value="<?= e($sortBy); ?>">
                                             <input type="hidden" name="return_dir" value="<?= e($sortDir); ?>">
                                             <input type="hidden" name="return_p" value="<?= e((string) $currentListPage); ?>">
+                                            <input type="hidden" name="return_type_sort" value="<?= e($typeSortBy); ?>">
+                                            <input type="hidden" name="return_type_dir" value="<?= e($typeSortDir); ?>">
+                                            <input type="hidden" name="return_type_p" value="<?= e((string) $typePage); ?>">
                                             <button type="submit" class="btn btn-sm <?= (int) $tipo['activo'] === 1 ? 'btn-outline-secondary' : 'btn-outline-success'; ?>"><i class="fa-solid <?= (int) $tipo['activo'] === 1 ? 'fa-eye-slash' : 'fa-eye'; ?> me-1"></i><?= (int) $tipo['activo'] === 1 ? 'Inactivar' : 'Activar'; ?></button>
                                         </form>
                                     </td>
@@ -703,18 +834,35 @@ if ($formMode === 'edit' || $formErrors !== []) {
                     </tbody>
                 </table>
             </div>
+            <div class="module-pagination">
+                <div class="module-pagination-status">Pagina <?= e((string) $typePage); ?> de <?= e((string) $typeTotalPages); ?></div>
+                <div class="module-pagination-controls">
+                    <?php if ($typePage > 1): ?>
+                        <a href="<?= e($typePaginationLink($typePage - 1, $search, $sortBy, $sortDir, $typeSortBy, $typeSortDir, $currentListPage)); ?>" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i>Anterior</a>
+                    <?php else: ?>
+                        <span class="btn btn-sm btn-outline-secondary disabled"><i class="fa-solid fa-arrow-left me-1"></i>Anterior</span>
+                    <?php endif; ?>
+                    <span class="module-pagination-index"><?= e((string) $typePage); ?>/<?= e((string) $typeTotalPages); ?></span>
+                    <?php if ($typePage < $typeTotalPages): ?>
+                        <a href="<?= e($typePaginationLink($typePage + 1, $search, $sortBy, $sortDir, $typeSortBy, $typeSortDir, $currentListPage)); ?>" class="btn btn-sm btn-outline-secondary">Siguiente<i class="fa-solid fa-arrow-right ms-1"></i></a>
+                    <?php else: ?>
+                        <span class="btn btn-sm btn-outline-secondary disabled">Siguiente<i class="fa-solid fa-arrow-right ms-1"></i></span>
+                    <?php endif; ?>
+                </div>
+            </div>
                     </div>
                 </div>
             </div>
         </div>
+        </div>
     </div>
 
     <div class="col-xl-8">
-        <div class="card-clean p-4">
-            <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-2 mb-3">
+        <div class="card-clean p-4 module-panel-card">
+            <div class="module-panel-head">
                 <div>
-                    <h2 class="h5 mb-1">Listado de personas</h2>
-                    <p class="text-muted small mb-0">Busqueda ampliada por identificacion, nombres, apellidos, telefono, correo y tipo de poblacion.</p>
+                    <h2 class="module-panel-title">Listado de personas</h2>
+                    <p class="module-panel-subtitle">Busqueda ampliada por identificacion, nombres, apellidos, telefono, correo y tipo de poblacion.</p>
                 </div>
                 <form method="get" class="d-flex gap-2 w-100 flex-wrap flex-lg-nowrap">
                     <input type="hidden" name="page" value="personas">
@@ -726,13 +874,15 @@ if ($formMode === 'edit' || $formErrors !== []) {
                 </form>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2 small text-muted">
+            <div class="module-toolbar">
+                <div class="module-toolbar-meta">
                 <span><i class="fa-solid fa-filter me-1"></i>Orden actual: <strong><?= e($sortBy); ?></strong> (<?= e(strtoupper($sortDir)); ?>)</span>
                 <span><i class="fa-solid fa-list-ol me-1"></i>Mostrando <?= e((string) $firstRecord); ?> - <?= e((string) $lastRecord); ?> de <?= e((string) $totalRecords); ?></span>
+                </div>
             </div>
 
             <div class="table-responsive">
-                <table class="table align-middle">
+                <table class="table align-middle module-table">
                     <thead>
                         <tr>
                             <th><div class="sort-header"><span>#</span><span class="sort-controls"><a class="sort-link <?= $sortBy === 'id' && $sortDir === 'asc' ? 'active' : ''; ?>" href="<?= e($sortLink('id', 'asc', $search)); ?>" title="Orden ascendente"><i class="fa-solid fa-sort-up"></i></a><a class="sort-link <?= $sortBy === 'id' && $sortDir === 'desc' ? 'active' : ''; ?>" href="<?= e($sortLink('id', 'desc', $search)); ?>" title="Orden descendente"><i class="fa-solid fa-sort-down"></i></a></span></div></th>
@@ -819,19 +969,19 @@ if ($formMode === 'edit' || $formErrors !== []) {
                 </table>
             </div>
 
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
-                <div class="small text-muted">Pagina <?= e((string) $currentListPage); ?> de <?= e((string) $totalPages); ?></div>
-                <div class="d-flex gap-2">
+            <div class="module-pagination">
+                <div class="module-pagination-status">Pagina <?= e((string) $currentListPage); ?> de <?= e((string) $totalPages); ?></div>
+                <div class="module-pagination-controls">
                     <?php if ($currentListPage > 1): ?>
                         <a href="<?= e($paginationLink($currentListPage - 1, $search, $sortBy, $sortDir)); ?>" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i>Anterior</a>
                     <?php else: ?>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" disabled><i class="fa-solid fa-arrow-left me-1"></i>Anterior</button>
+                        <span class="btn btn-sm btn-outline-secondary disabled"><i class="fa-solid fa-arrow-left me-1"></i>Anterior</span>
                     <?php endif; ?>
-
+                    <span class="module-pagination-index"><?= e((string) $currentListPage); ?>/<?= e((string) $totalPages); ?></span>
                     <?php if ($currentListPage < $totalPages): ?>
                         <a href="<?= e($paginationLink($currentListPage + 1, $search, $sortBy, $sortDir)); ?>" class="btn btn-sm btn-outline-secondary">Siguiente<i class="fa-solid fa-arrow-right ms-1"></i></a>
                     <?php else: ?>
-                        <button type="button" class="btn btn-sm btn-outline-secondary" disabled>Siguiente<i class="fa-solid fa-arrow-right ms-1"></i></button>
+                        <span class="btn btn-sm btn-outline-secondary disabled">Siguiente<i class="fa-solid fa-arrow-right ms-1"></i></span>
                     <?php endif; ?>
                 </div>
             </div>

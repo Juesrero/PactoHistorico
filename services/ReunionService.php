@@ -4,14 +4,56 @@ declare(strict_types=1);
 class ReunionService
 {
     private PDO $pdo;
+    private const LIST_SORT_MAP = [
+        'id' => 'r.id',
+        'nombre_reunion' => 'r.nombre_reunion',
+        'tipo_reunion' => 'r.tipo_reunion',
+        'lugar_reunion' => 'r.lugar_reunion',
+        'fecha' => 'r.fecha',
+        'hora' => 'r.hora',
+        'total_asistentes' => 'total_asistentes',
+    ];
+    private const ATTENDEE_SORT_MAP = [
+        'nombre_persona' => 'nombre_persona',
+        'numero_documento' => 'p.numero_documento',
+        'celular' => 'p.celular',
+        'es_testigo' => 'p.es_testigo',
+        'es_jurado' => 'p.es_jurado',
+        'fecha_registro' => 'a.fecha_registro',
+        'hora_registro' => 'a.hora_registro',
+    ];
 
     public function __construct(PDO $pdo)
     {
         $this->pdo = $pdo;
     }
 
-    public function list(): array
+    public function count(string $search = ''): int
     {
+        $sql = 'SELECT COUNT(*)
+                FROM reuniones r';
+        $params = [];
+
+        if ($search !== '') {
+            $sql .= ' WHERE r.nombre_reunion LIKE :search
+                      OR r.objetivo LIKE :search
+                      OR r.tipo_reunion LIKE :search
+                      OR r.organizacion LIKE :search
+                      OR r.lugar_reunion LIKE :search';
+            $params['search'] = '%' . $search . '%';
+        }
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function listPaginated(string $search, string $sortBy, string $sortDir, int $limit, int $offset): array
+    {
+        $orderColumn = self::LIST_SORT_MAP[$sortBy] ?? self::LIST_SORT_MAP['fecha'];
+        $orderDir = strtolower($sortDir) === 'asc' ? 'ASC' : 'DESC';
+
         $sql = 'SELECT r.id,
                        r.nombre_reunion,
                        r.objetivo,
@@ -22,11 +64,36 @@ class ReunionService
                        r.hora,
                        COUNT(a.id) AS total_asistentes
                 FROM reuniones r
-                LEFT JOIN asistencias a ON a.reunion_id = r.id
-                GROUP BY r.id, r.nombre_reunion, r.objetivo, r.tipo_reunion, r.organizacion, r.lugar_reunion, r.fecha, r.hora
-                ORDER BY r.fecha DESC, r.hora DESC';
+                LEFT JOIN asistencias a ON a.reunion_id = r.id';
+        $params = [];
 
-        return $this->pdo->query($sql)->fetchAll();
+        if ($search !== '') {
+            $sql .= ' WHERE r.nombre_reunion LIKE :search
+                      OR r.objetivo LIKE :search
+                      OR r.tipo_reunion LIKE :search
+                      OR r.organizacion LIKE :search
+                      OR r.lugar_reunion LIKE :search';
+            $params['search'] = '%' . $search . '%';
+        }
+
+        $sql .= ' GROUP BY r.id, r.nombre_reunion, r.objetivo, r.tipo_reunion, r.organizacion, r.lugar_reunion, r.fecha, r.hora
+                  ORDER BY ' . $orderColumn . ' ' . $orderDir;
+
+        if ($orderColumn !== 'r.id') {
+            $sql .= ', r.id DESC';
+        }
+
+        $sql .= ' LIMIT :limit OFFSET :offset';
+
+        $stmt = $this->pdo->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(':' . $key, $value, PDO::PARAM_STR);
+        }
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return $stmt->fetchAll();
     }
 
     public function findById(int $id): ?array
@@ -55,8 +122,19 @@ class ReunionService
         return $reunion !== false ? $reunion : null;
     }
 
-    public function attendeesByMeeting(int $id): array
+    public function countAttendeesByMeeting(int $id): int
     {
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM asistencias WHERE reunion_id = :id');
+        $stmt->execute(['id' => $id]);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function attendeesByMeetingPaginated(int $id, string $sortBy, string $sortDir, int $limit, int $offset): array
+    {
+        $orderColumn = self::ATTENDEE_SORT_MAP[$sortBy] ?? self::ATTENDEE_SORT_MAP['nombre_persona'];
+        $orderDir = strtolower($sortDir) === 'desc' ? 'DESC' : 'ASC';
+
         $sql = 'SELECT a.id,
                        a.persona_id,
                        COALESCE(NULLIF(TRIM(CONCAT_WS(" ", p.nombres, p.apellidos)), ""), p.nombres_apellidos) AS nombre_persona,
@@ -72,11 +150,19 @@ class ReunionService
                 FROM asistencias a
                 INNER JOIN personas p ON p.id = a.persona_id
                 WHERE a.reunion_id = :id
-                ORDER BY COALESCE(NULLIF(TRIM(p.apellidos), ""), p.nombres_apellidos) ASC,
-                         COALESCE(NULLIF(TRIM(p.nombres), ""), p.nombres_apellidos) ASC';
+                ORDER BY ' . $orderColumn . ' ' . $orderDir;
+
+        if ($orderColumn !== 'nombre_persona') {
+            $sql .= ', nombre_persona ASC';
+        }
+
+        $sql .= ' LIMIT :limit OFFSET :offset';
 
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute(['id' => $id]);
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
 
         return $stmt->fetchAll();
     }
